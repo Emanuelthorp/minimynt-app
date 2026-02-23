@@ -85,7 +85,21 @@ function DevRoleSwitcher() {
 }
 
 export default function RootNavigator() {
-  const { state, isLoading } = useAppContext();
+  const { state, isLoading, dispatch } = useAppContext();
+
+  // DEV: ?boot=adult or ?boot=child in URL auto-logs in for screenshots
+  React.useEffect(() => {
+    if (!__DEV__ || Platform.OS !== 'web') return;
+    const params = new URLSearchParams(window.location.search);
+    const boot = params.get('boot');
+    if (boot === 'adult' && !state.roleLock) {
+      dispatch({ type: 'SET_ADULT_PHONE', payload: '99999999' });
+      dispatch({ type: 'SET_ROLE_LOCK', payload: 'adult' });
+    } else if (boot === 'child' && !state.roleLock) {
+      dispatch({ type: 'SET_CHILD_PHONE', payload: '88888888' });
+      dispatch({ type: 'SET_ROLE_LOCK', payload: 'child' });
+    }
+  }, [isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (isLoading) {
     return (

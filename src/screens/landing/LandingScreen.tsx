@@ -481,14 +481,15 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   heroHeadline: {
-    fontSize: 34,
+    fontSize: 30,
     fontWeight: FontWeight.bold,
     fontFamily: FontFamily.bold,
     color: Colors.textInverse,
     textAlign: 'center',
-    lineHeight: 42,
+    lineHeight: 38,
     marginTop: 20,
     marginBottom: 12,
+    paddingHorizontal: 8,
   },
   heroSubline: {
     fontSize: FontSize.body,
