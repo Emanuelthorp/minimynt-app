@@ -1,42 +1,62 @@
-# MiniMynt — TODO / Deferred Items
+# MiniMynt — TODO
 
-## Critical (before production)
+## Kritisk (før produksjon)
 
-- [ ] **Real authentication** — Replace mock OTP ("1234") with actual SMS gateway (e.g., Twilio Verify or Firebase Auth)
-- [ ] **Real Vipps integration** — Replace mock payment modal with Vipps eCom API or Vipps MobilePay SDK
-- [ ] **Backend / sync** — Currently all state is local AsyncStorage only. Add a backend (e.g., Supabase, Firebase) for multi-device sync
-- [ ] **Adult phone validation** — Adult can currently log in with any 8-digit number; should be tied to a real account
+- [ ] **Ekte SMS OTP** — Bytt mock-kode "1234" med SMS-gateway (Twilio Verify, Firebase Auth eller Supabase Auth)
+- [ ] **Ekte Vipps API** — Deeplink er implementert, men trenger Vipps Merchant Agreement + eCom API v2 for faktiske betalinger
+- [ ] **Backend / sync** — All state er lokal AsyncStorage. Legg til backend (Supabase anbefalt) for flerenhets-støtte og sikkerhet
+- [ ] **Brukerautentisering** — Telefonnummer er ikke verifisert, hvem som helst kan logge inn med et 8-sifret nummer
 
 ## UX / Polish
 
-- [ ] **Animations** — Add Reanimated 2 celebrations on task completion (confetti, scale bounce per DESIGN_RULES.md)
-- [ ] **Haptic feedback** — Add `expo-haptics` on button taps, task approvals, and payments
-- [ ] **Skeleton loaders** — Replace ActivityIndicator with skeleton screens during load
-- [ ] **Empty state illustrations** — Add SVG illustrations for empty task lists, no children, etc.
-- [ ] **Pull-to-refresh** — Add RefreshControl on all list screens
-- [ ] **Avatar images** — Option to use camera/photo (expo-image-picker is installed but unused)
+- [ ] **Haptic feedback** — `expo-haptics` ved knappetrykk, oppgavegodkjenning og utbetaling
+- [ ] **Pull-to-refresh** — `RefreshControl` på alle lister
+- [ ] **Avatar-bilder** — Mulighet til å bruke kamera/bilde (`expo-image-picker` er installert men ubrukt)
+- [ ] **Oppgave-bekreftelse** — Animasjon/feedback når barn melder oppgave ferdig
 
-## Features
+## Funksjoner
 
-- [ ] **Task templates** — Pre-built task library (vasking, rydding, handling, etc.)
-- [ ] **Recurring tasks** — Weekly/daily repeating tasks
-- [ ] **Savings goals** — Child can set a savings goal with progress bar
-- [ ] **Notifications** — Push notifications when task is approved/rejected (expo-notifications)
-- [ ] **Task history / ledger** — Paginated history of all past transactions
-- [ ] **Multiple adults** — Currently single adult per household
+- [ ] **Oppgavemaler** — Forhåndslagde norske husarbeidsmaler (vasking, rydding, handling, lekser etc.)
+- [ ] **Gjentagende oppgaver** — Ukentlig/daglig gjentakelse
+- [ ] **Sparemål** — Barn kan sette sparemål med fremdriftslinje
+- [ ] **Push-notifikasjoner** — Varsling når oppgave godkjennes/avvises (`expo-notifications`)
+- [ ] **Transaksjonshistorikk** — Paginert historikk over alle utbetalinger
+- [ ] **Flere foreldre** — For øyeblikket kun én voksen per husstand
 
-## Technical Debt
+## Teknisk gjeld
 
-- [ ] **Navigation type safety** — Export ParamList types from RootNavigator and thread through to screen props
-- [ ] **Error boundaries** — Add React error boundary around NavigationContainer
-- [ ] **Test suite** — Unit tests for reducer (store/AppContext), integration tests for auth flow
-- [ ] **Accessibility** — Add accessibilityLabel to all TouchableOpacity and icon-only buttons
-- [ ] **State migration** — Add versioned schema migration for AsyncStorage (for future breaking changes)
-- [ ] **Ledger month reset** — Auto-reset paidOutThisMonth when calendar month changes
-- [ ] **Node version** — Project was scaffolded on Node 18; upgrade to Node 20+ for full React Native 0.81 support. `npx expo start` fails on Node 18 with `TypeError: configs.toReversed is not a function` (metro-config uses Array.toReversed which requires Node 20). Run `nvm use 20` or install Node 20 to run the dev server. TypeScript compilation (`npx tsc --noEmit`) passes cleanly on Node 18.
+- [ ] **Navigasjons-typesikkerhet** — Eksporter ParamList-typer fra RootNavigator til alle skjermkomponenter
+- [ ] **Error boundaries** — Legg til React error boundary rundt NavigationContainer
+- [ ] **Testsuite** — Enhetstester for reducer (store/AppContext), integrasjonstester for auth-flyt
+- [ ] **Tilgjengelighet** — `accessibilityLabel` på alle TouchableOpacity og ikon-knapper
+- [ ] **State-migrering** — Versjonert skjema-migrering for AsyncStorage ved fremtidige breaking changes
+- [ ] **UUID for task-ID** — Bytt `Math.random()` ID med `uuid` v4 i produksjon
 
-## Known Limitations
+## Fjern før produksjon
 
-- Role selection is permanent (by design) — child cannot switch to adult view
-- 48h task expiry is computed on render, not enforced server-side
-- Vipps "payment" is a UI mock only — no actual money movement
+- [ ] **DevRoleSwitcher** — Allerede gated bak `__DEV__`, men verifiser at produksjons-build ikke eksponerer den
+- [ ] **`?boot=` URL-param** — Fjern boot-param logikk i RootNavigator (kun for dev/screenshot)
+- [ ] **Hardkodede testtelefoner** — `'99999999'` og `'88888888'` i DevRoleSwitcher
+
+---
+
+## Ferdig ✅
+
+- [x] Komplett oppgaveflyt (Ledig → Tatt → Ferdig → Godkjent/Avvist → Betalt)
+- [x] Avviste oppgaver kan gjenåpnes til "Ledig" (REOPEN_TASK)
+- [x] Logg ut: atomisk clearAsyncStorage + RESET_STATE (ingen stale state)
+- [x] Månedlig ledger-reset (RESET_LEDGER)
+- [x] Utløpte oppgaver ryddes ved oppstart (CLEANUP_EXPIRED_TASKS)
+- [x] Vipps deeplink (vipps://payment?phone=...&amount=...)
+- [x] 3-stegs betalingsflyt med pulserende animasjon og suksess-skjerm
+- [x] Toast-notifikasjoner (godkjenn/avvis/betaling)
+- [x] Skeleton loaders (HomeScreen + child/TasksScreen, 800ms minimum)
+- [x] Tab-bar badge på "Godkjenn" (antall ventende)
+- [x] Legg til / Rediger / Fjern barn i FamilyScreen
+- [x] Belønningsvalidering (1–9999 kr)
+- [x] Design system v5 (teal #0D9488, navy #1A365D, Manrope)
+- [x] PiggyLogo SVG med animate prop
+- [x] Micro-animasjoner (card tilt, Vipps gradient, button physics)
+- [x] Landing page (navy hero, animerte former, scroll-reveal)
+- [x] DevRoleSwitcher (kun __DEV__)
+- [x] Komplett komponentbibliotek (Button, Card, Toast, EmptyState, etc.)
