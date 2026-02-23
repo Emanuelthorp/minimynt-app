@@ -86,15 +86,15 @@ export default function TasksScreen() {
     let valid = true;
 
     if (!formTitle.trim()) {
-      setTitleError('Tittel er påkrevd.');
+      setTitleError('Tittel kan ikke være tom');
       valid = false;
     } else {
       setTitleError('');
     }
 
     const rewardNum = parseFloat(formReward.replace(',', '.'));
-    if (!formReward.trim() || isNaN(rewardNum) || rewardNum < 0) {
-      setRewardError('Oppgi et gyldig beløp (f.eks. 50).');
+    if (!formReward.trim() || isNaN(rewardNum) || rewardNum < 1 || rewardNum > 9999) {
+      setRewardError('Belønning må være mellom 1 og 9999 kr.');
       valid = false;
     } else {
       setRewardError('');
@@ -105,7 +105,7 @@ export default function TasksScreen() {
     dispatch({
       type: 'ADD_TASK',
       payload: {
-        id: Date.now().toString(),
+        id: Math.random().toString(36).slice(2) + Date.now().toString(36),
         title: formTitle.trim(),
         description: formDesc.trim(),
         reward: rewardNum,
@@ -251,6 +251,13 @@ export default function TasksScreen() {
                 onPress={handleSaveTask}
                 accentColor={Colors.brand}
                 style={styles.saveButton}
+                disabled={
+                  !formTitle.trim() ||
+                  (() => {
+                    const n = parseFloat(formReward.replace(',', '.'));
+                    return !formReward.trim() || isNaN(n) || n < 1 || n > 9999;
+                  })()
+                }
               />
               <TouchableOpacity style={styles.cancelLink} onPress={closeAddModal}>
                 <Text style={styles.cancelLinkText}>Avbryt</Text>

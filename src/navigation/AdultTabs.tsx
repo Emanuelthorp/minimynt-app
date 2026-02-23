@@ -2,6 +2,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Feather } from '@expo/vector-icons';
 import { Colors, FontSize, FontWeight } from '../constants/tokens';
+import { useAppContext } from '../store/AppContext';
 
 import HomeScreen from '../screens/adult/HomeScreen';
 import FamilyScreen from '../screens/adult/FamilyScreen';
@@ -12,6 +13,9 @@ import ProfileScreen from '../screens/adult/ProfileScreen';
 const Tab = createBottomTabNavigator();
 
 export default function AdultTabs() {
+  const { state } = useAppContext();
+  const pendingCount = state.tasks.filter((t) => t.status === 'Ferdig').length;
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -59,6 +63,8 @@ export default function AdultTabs() {
         component={ApprovalScreen}
         options={{
           tabBarIcon: ({ color, size }) => <Feather name="check-circle" size={size} color={color} />,
+          tabBarBadge: pendingCount > 0 ? pendingCount : undefined,
+          tabBarBadgeStyle: { backgroundColor: Colors.statusWarning, color: '#fff', fontSize: 10 },
         }}
       />
       <Tab.Screen

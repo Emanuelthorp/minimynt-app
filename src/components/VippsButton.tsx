@@ -1,12 +1,16 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ViewStyle, Platform } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, ViewStyle, Platform, Linking, Alert } from 'react-native';
 import { Colors, Radius, Spacing, FontSize, FontWeight } from '../constants/tokens';
 
 interface Props {
   label?: string;
-  onPress: () => void;
+  onPress?: () => void;
   disabled?: boolean;
   style?: ViewStyle;
+  // Vipps deeplink props
+  phone?: string;
+  amount?: number;
+  onPaymentInitiated?: () => void;
 }
 
 const WEB_BASE: any = Platform.OS === 'web' ? {
@@ -27,12 +31,55 @@ const VippsButton: React.FC<Props> = ({
   onPress,
   disabled = false,
   style,
+  phone,
+  amount,
+  onPaymentInitiated,
 }) => {
   const [hovered, setHovered] = React.useState(false);
 
+  async function handlePress() {
+    if (phone && amount !== undefined) {
+      const amountInOre = Math.round(amount * 100);
+      const vippsUrl = `vipps://payment?phone=${phone}&amount=${amountInOre}&message=MiniMynt%20oppgaver`;
+
+      if (Platform.OS === 'web') {
+        // On web, show instructions (desktop can't open Vipps app)
+        Alert.alert(
+          'Vipps-betaling',
+          `Åpne Vipps på din mobil og send ${amount} kr til ${phone}.\n\nTrykk "Bekreftet betalt" når betalingen er gjennomført.`,
+          [{ text: 'OK' }]
+        );
+        setTimeout(() => onPaymentInitiated?.(), 500);
+        return;
+      }
+
+      // Check if Vipps is installed
+      const canOpen = await Linking.canOpenURL(vippsUrl).catch(() => false);
+      if (!canOpen) {
+        Alert.alert(
+          'Vipps ikke installert',
+          `Åpne Vipps-appen og send ${amount} kr til ${phone}`,
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      try {
+        await Linking.openURL(vippsUrl);
+      } catch {
+        // Silently ignore — Vipps was opened or failed to open
+      }
+      setTimeout(() => onPaymentInitiated?.(), 500);
+      return;
+    }
+
+    // Fallback to manual onPress if no deeplink props provided
+    onPress?.();
+  }
+
   return (
     <TouchableOpacity
-      onPress={onPress}
+      onPress={handlePress}
       disabled={disabled}
       activeOpacity={0.8}
       // @ts-ignore — web-only pointer events

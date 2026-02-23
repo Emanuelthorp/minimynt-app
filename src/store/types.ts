@@ -51,6 +51,7 @@ export type Action =
   | { type: 'SET_CHILD_PHONE'; payload: string }
   | { type: 'ADD_CHILD'; payload: Child }
   | { type: 'REMOVE_CHILD'; payload: string }            // phone
+  | { type: 'UPDATE_CHILD'; payload: { phone: string; name: string; avatarEmoji: string } }
   | { type: 'ADD_TASK'; payload: Task }
   | { type: 'UPDATE_TASK'; payload: Partial<Task> & { id: string } }
   | { type: 'DELETE_TASK'; payload: string }             // id
@@ -58,7 +59,10 @@ export type Action =
   | { type: 'COMPLETE_TASK'; payload: string }           // taskId
   | { type: 'APPROVE_TASK'; payload: string }            // taskId
   | { type: 'REJECT_TASK'; payload: string }             // taskId
+  | { type: 'REOPEN_TASK'; payload: string }             // taskId
   | { type: 'SET_TASKS_PAID'; payload: string[] }        // taskIds
+  | { type: 'RESET_LEDGER' }
+  | { type: 'CLEANUP_EXPIRED_TASKS' }
   | { type: 'RESET_STATE' };
 
 export const initialState: AppState = {

@@ -5,7 +5,7 @@ import React, {
   useReducer,
   useState,
 } from 'react';
-import { AppState, Action, initialState } from './types';
+import { AppState, Action, initialState, isTaskExpired } from './types';
 import { loadState, saveState, clearState } from './persistence';
 
 // ── Reducer ────────────────────────────────────────────────────────────────
@@ -28,6 +28,16 @@ function reducer(state: AppState, action: Action): AppState {
       return {
         ...state,
         children: state.children.filter((c) => c.phone !== action.payload),
+      };
+
+    case 'UPDATE_CHILD':
+      return {
+        ...state,
+        children: state.children.map((c) =>
+          c.phone === action.payload.phone
+            ? { ...c, name: action.payload.name, avatarEmoji: action.payload.avatarEmoji }
+            : c
+        ),
       };
 
     case 'ADD_TASK':
@@ -111,6 +121,32 @@ function reducer(state: AppState, action: Action): AppState {
       };
     }
 
+    case 'REOPEN_TASK':
+      return {
+        ...state,
+        tasks: state.tasks.map((t) =>
+          t.id === action.payload
+            ? { ...t, status: 'Ledig', takenBy: undefined, takenAt: undefined, completedAt: undefined, approvedAt: undefined }
+            : t
+        ),
+      };
+
+    case 'RESET_LEDGER': {
+      const currentMonth = new Date().toISOString().slice(0, 7);
+      return {
+        ...state,
+        ledger: { paidOutThisMonth: 0, feeDue: 0, month: currentMonth },
+      };
+    }
+
+    case 'CLEANUP_EXPIRED_TASKS':
+      return {
+        ...state,
+        tasks: state.tasks.filter(
+          (t) => !(isTaskExpired(t) && (t.status === 'Ledig' || t.status === 'Tatt'))
+        ),
+      };
+
     case 'RESET_STATE':
       return initialState;
 
@@ -154,10 +190,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         if (saved.childPhone) dispatch({ type: 'SET_CHILD_PHONE', payload: saved.childPhone });
         saved.children.forEach((c) => dispatch({ type: 'ADD_CHILD', payload: c }));
         saved.tasks.forEach((t) => dispatch({ type: 'ADD_TASK', payload: t }));
+
+        // Fix 4: reset ledger if the saved month differs from the current month
+        const currentMonth = new Date().toISOString().slice(0, 7);
+        if (saved.ledger && saved.ledger.month !== currentMonth) {
+          dispatch({ type: 'RESET_LEDGER' });
+        }
       }
       setIsLoading(false);
     })();
   }, []);
+
+  // Fix 5: clean up expired tasks once loading is complete
+  useEffect(() => {
+    if (!isLoading) {
+      dispatch({ type: 'CLEANUP_EXPIRED_TASKS' });
+    }
+  }, [isLoading]);
 
   // Persist on every state change
   useEffect(() => {

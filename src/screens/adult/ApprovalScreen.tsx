@@ -1,13 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Modal,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
+import { Feather } from '@expo/vector-icons';
+import Toast, { useToast } from '../../components/Toast';
 import {
   Colors,
   FontSize,
@@ -35,11 +44,48 @@ interface VippsTarget {
   total: number;
 }
 
+// ── Animated pulsing Vipps logo for Step 2 ──────────────────────────────────
+function VippsPulse() {
+  const scale = useSharedValue(1);
+
+  useEffect(() => {
+    scale.value = withRepeat(
+      withSequence(
+        withTiming(1.05, { duration: 600 }),
+        withTiming(1.0, { duration: 600 })
+      ),
+      -1,
+      false
+    );
+  }, []);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <Animated.View style={[styles.vippsPulseCircle, animStyle]}>
+      <Text style={styles.vippsPulseText}>Vipps</Text>
+    </Animated.View>
+  );
+}
+
 export default function ApprovalScreen() {
   const { state, dispatch } = useAppContext();
   const { tasks, children } = state;
 
   const [vippsTarget, setVippsTarget] = useState<VippsTarget | null>(null);
+  const [modalStep, setModalStep] = useState<1 | 2 | 3>(1);
+  const { toast, show: showToast, hide: hideToast } = useToast();
+
+  // Reset step to 1 whenever a new vippsTarget is set
+  const prevVippsTarget = useRef<VippsTarget | null>(null);
+  useEffect(() => {
+    if (vippsTarget !== null && prevVippsTarget.current === null) {
+      setModalStep(1);
+    }
+    prevVippsTarget.current = vippsTarget;
+  }, [vippsTarget]);
 
   const pendingTasks = tasks.filter((t) => t.status === 'Ferdig');
 
@@ -64,12 +110,20 @@ export default function ApprovalScreen() {
     return children.find((c) => c.phone === phone);
   }
 
+  const rejectedTasks = tasks.filter((t) => t.status === 'Avvist');
+
   function handleApprove(taskId: string) {
     dispatch({ type: 'APPROVE_TASK', payload: taskId });
+    showToast('Oppgave godkjent', 'success');
   }
 
   function handleReject(taskId: string) {
     dispatch({ type: 'REJECT_TASK', payload: taskId });
+    showToast('Oppgave avvist', 'error');
+  }
+
+  function handleReopen(taskId: string) {
+    dispatch({ type: 'REOPEN_TASK', payload: taskId });
   }
 
   function handleMarkPaid(target: VippsTarget) {
@@ -77,7 +131,14 @@ export default function ApprovalScreen() {
       type: 'SET_TASKS_PAID',
       payload: target.tasks.map((t) => t.id),
     });
+    setModalStep(3);
+    setTimeout(() => setVippsTarget(null), 2000);
+    showToast('Betaling registrert ✓', 'success');
+  }
+
+  function closeModal() {
     setVippsTarget(null);
+    setModalStep(1);
   }
 
   // Navy badge showing pending count for the header
@@ -212,79 +273,190 @@ export default function ApprovalScreen() {
           ))
         )}
 
+        {/* ── Rejected tasks section ── */}
+        {rejectedTasks.length > 0 && (
+          <>
+            <Text style={[styles.sectionLabel, styles.sectionLabelGap]}>
+              Avviste oppgaver
+            </Text>
+            {rejectedTasks.map((task, index) => {
+              const child = getChild(task.takenBy);
+              const displayName = child
+                ? `${child.avatarEmoji} ${child.name}`
+                : task.takenBy ?? '';
+              return (
+                <Animated.View
+                  key={task.id}
+                  entering={FadeInDown.delay(index * 60).duration(300)}
+                >
+                  <Card elevation="md">
+                    {/* Title row + red reward badge */}
+                    <View style={styles.approvalCardHeader}>
+                      <Text style={styles.approvalTaskTitle} numberOfLines={1}>
+                        {task.title}
+                      </Text>
+                      <View style={styles.rewardBadgeDanger}>
+                        <Text style={styles.rewardBadgeText}>
+                          {task.reward} kr
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Child chip */}
+                    {displayName ? (
+                      <View style={styles.childChip}>
+                        <Text style={styles.childChipText}>{displayName}</Text>
+                      </View>
+                    ) : null}
+
+                    {/* Reopen button */}
+                    <Button
+                      label="Gjør ledig igjen"
+                      onPress={() => handleReopen(task.id)}
+                      variant="secondary"
+                      accentColor={Colors.brand}
+                      style={styles.reopenButton}
+                    />
+                  </Card>
+                </Animated.View>
+              );
+            })}
+          </>
+        )}
+
         <View style={{ height: Spacing.xl }} />
       </ScreenContainer>
+
+      {/* Toast notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          visible={true}
+          onHide={hideToast}
+        />
+      )}
 
       {/* ── Vipps payment bottom sheet ── */}
       <Modal
         visible={vippsTarget !== null}
         animationType="slide"
         transparent
-        onRequestClose={() => setVippsTarget(null)}
+        onRequestClose={closeModal}
       >
         <Animated.View entering={FadeIn.duration(200)} style={styles.modalOverlay}>
           {vippsTarget && (
             <View style={styles.modalSheet}>
-              <Text style={styles.modalTitle}>Send betaling</Text>
 
-              <Card style={styles.summaryCard}>
-                <ListRow
-                  title="Mottaker"
-                  right={
-                    <Text style={styles.summaryValue}>
-                      {vippsTarget.child.avatarEmoji} {vippsTarget.child.name}
-                    </Text>
-                  }
-                />
-                <ListRow
-                  title="Telefon"
-                  right={
-                    <Text style={styles.summaryValue}>
-                      {vippsTarget.child.phone}
-                    </Text>
-                  }
-                />
-                <ListRow
-                  title="Oppgaver"
-                  right={
-                    <Text style={styles.summaryValue}>
-                      {vippsTarget.tasks.length} stk
-                    </Text>
-                  }
-                />
-                <ListRow
-                  title="Totalbeløp"
-                  right={
-                    <Text style={styles.totalValue}>
-                      {vippsTarget.total} kr
-                    </Text>
-                  }
-                  showDivider={false}
-                />
-              </Card>
+              {/* ── Step 1: Review ── */}
+              {modalStep === 1 && (
+                <>
+                  <Text style={styles.modalTitle}>Send betaling</Text>
 
-              {/* Task breakdown */}
-              {vippsTarget.tasks.map((t) => (
-                <View key={t.id} style={styles.taskBreakdownRow}>
-                  <Text style={styles.taskBreakdownTitle} numberOfLines={1}>
-                    {t.title}
+                  <Card style={styles.summaryCard}>
+                    <ListRow
+                      title="Mottaker"
+                      right={
+                        <Text style={styles.summaryValue}>
+                          {vippsTarget.child.avatarEmoji} {vippsTarget.child.name}
+                        </Text>
+                      }
+                    />
+                    <ListRow
+                      title="Telefon"
+                      right={
+                        <Text style={styles.summaryValue}>
+                          {vippsTarget.child.phone}
+                        </Text>
+                      }
+                    />
+                    <ListRow
+                      title="Oppgaver"
+                      right={
+                        <Text style={styles.summaryValue}>
+                          {vippsTarget.tasks.length} stk
+                        </Text>
+                      }
+                    />
+                    <ListRow
+                      title="Totalbeløp"
+                      right={
+                        <Text style={styles.totalValue}>
+                          {vippsTarget.total} kr
+                        </Text>
+                      }
+                      showDivider={false}
+                    />
+                  </Card>
+
+                  {/* Task breakdown */}
+                  {vippsTarget.tasks.map((t) => (
+                    <View key={t.id} style={styles.taskBreakdownRow}>
+                      <Text style={styles.taskBreakdownTitle} numberOfLines={1}>
+                        {t.title}
+                      </Text>
+                      <Text style={styles.taskBreakdownReward}>{t.reward} kr</Text>
+                    </View>
+                  ))}
+
+                  <VippsButton
+                    label={`Betal ${vippsTarget.total} kr med Vipps`}
+                    phone={vippsTarget.child.phone}
+                    amount={vippsTarget.total}
+                    onPaymentInitiated={() => setModalStep(2)}
+                    style={styles.payButton}
+                  />
+
+                  <TouchableOpacity
+                    style={styles.cancelLink}
+                    onPress={closeModal}
+                  >
+                    <Text style={styles.cancelLinkText}>Avbryt</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+
+              {/* ── Step 2: Waiting for confirmation ── */}
+              {modalStep === 2 && (
+                <>
+                  <Text style={styles.modalTitle}>Vent på bekreftelse i Vipps</Text>
+
+                  <View style={styles.pulseContainer}>
+                    <VippsPulse />
+                    <Text style={styles.waitingText}>
+                      Betalingen er sendt til Vipps-appen din
+                    </Text>
+                  </View>
+
+                  <Button
+                    label="Bekreft betalt ✓"
+                    onPress={() => handleMarkPaid(vippsTarget)}
+                    accentColor={Colors.brand}
+                    style={styles.confirmButton}
+                  />
+
+                  <TouchableOpacity
+                    style={styles.cancelLink}
+                    onPress={() => setModalStep(1)}
+                  >
+                    <Text style={styles.cancelLinkText}>Tilbake</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+
+              {/* ── Step 3: Success ── */}
+              {modalStep === 3 && (
+                <View style={styles.successContainer}>
+                  <View style={styles.successCircle}>
+                    <Feather name="check" size={48} color={Colors.textInverse} />
+                  </View>
+                  <Text style={styles.successTitle}>Betaling bekreftet!</Text>
+                  <Text style={styles.successSubtitle}>
+                    {vippsTarget.total} kr sendt til {vippsTarget.child.name}
                   </Text>
-                  <Text style={styles.taskBreakdownReward}>{t.reward} kr</Text>
                 </View>
-              ))}
+              )}
 
-              <VippsButton
-                label={`Betal ${vippsTarget.total} kr med Vipps`}
-                onPress={() => handleMarkPaid(vippsTarget)}
-                style={styles.payButton}
-              />
-
-              <TouchableOpacity
-                style={styles.cancelLink}
-                onPress={() => setVippsTarget(null)}
-              >
-                <Text style={styles.cancelLinkText}>Avbryt</Text>
-              </TouchableOpacity>
             </View>
           )}
         </Animated.View>
@@ -366,6 +538,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
+  rewardBadgeDanger: {
+    backgroundColor: Colors.statusDanger,
+    borderRadius: Radius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
   rewardBadgeText: {
     fontSize: FontSize.label,
     fontWeight: FontWeight.bold,
@@ -388,6 +566,9 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     flex: 1,
+  },
+  reopenButton: {
+    marginTop: Spacing.sm2,
   },
   // Vipps payout cards
   vippsChildRow: {
@@ -502,5 +683,65 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.regular,
     color: Colors.textSecondary,
     lineHeight: LineHeight.tight,
+  },
+  // Step 2 — waiting
+  pulseContainer: {
+    alignItems: 'center',
+    paddingVertical: Spacing.xl,
+    gap: Spacing.lg,
+  },
+  vippsPulseCircle: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: Colors.vippsOrange,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  vippsPulseText: {
+    color: Colors.textInverse,
+    fontSize: FontSize.label,
+    fontWeight: FontWeight.bold,
+    fontFamily: FontFamily.bold,
+  },
+  waitingText: {
+    fontSize: FontSize.body,
+    fontFamily: FontFamily.regular,
+    color: Colors.textSecondary,
+    lineHeight: LineHeight.normal,
+    textAlign: 'center',
+  },
+  confirmButton: {
+    marginBottom: Spacing.sm,
+  },
+  // Step 3 — success
+  successContainer: {
+    alignItems: 'center',
+    paddingVertical: Spacing.xl,
+    gap: Spacing.md,
+  },
+  successCircle: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: Colors.brand,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.sm,
+  },
+  successTitle: {
+    fontSize: FontSize.title,
+    fontWeight: FontWeight.bold,
+    fontFamily: FontFamily.bold,
+    color: Colors.textPrimary,
+    lineHeight: LineHeight.loose,
+    textAlign: 'center',
+  },
+  successSubtitle: {
+    fontSize: FontSize.body,
+    fontFamily: FontFamily.regular,
+    color: Colors.textSecondary,
+    lineHeight: LineHeight.normal,
+    textAlign: 'center',
   },
 });

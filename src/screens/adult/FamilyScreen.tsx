@@ -8,8 +8,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { Colors, FontSize, FontWeight, Radius, Spacing, Layout, LineHeight } from '../../constants/tokens';
 import { useAppContext } from '../../store/AppContext';
+import { Child } from '../../store/types';
 import ScreenContainer from '../../components/ScreenContainer';
 import ScreenHeader from '../../components/ScreenHeader';
 import Card from '../../components/Card';
@@ -28,6 +30,13 @@ export default function FamilyScreen() {
   const [selectedEmoji, setSelectedEmoji] = useState(EMOJI_OPTIONS[0]);
   const [nameError, setNameError] = useState('');
   const [phoneError, setPhoneError] = useState('');
+
+  // Edit modal state
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editChild, setEditChild] = useState<Child | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editEmoji, setEditEmoji] = useState(EMOJI_OPTIONS[0]);
+  const [editNameError, setEditNameError] = useState('');
 
   function resetForm() {
     setName('');
@@ -81,6 +90,37 @@ export default function FamilyScreen() {
     closeModal();
   }
 
+  function openEditModal(child: Child) {
+    setEditChild(child);
+    setEditName(child.name);
+    setEditEmoji(child.avatarEmoji);
+    setEditNameError('');
+    setEditModalVisible(true);
+  }
+
+  function closeEditModal() {
+    setEditModalVisible(false);
+    setEditChild(null);
+    setEditNameError('');
+  }
+
+  function handleEditSave() {
+    if (!editName.trim()) {
+      setEditNameError('Navn er påkrevd.');
+      return;
+    }
+    if (!editChild) return;
+    dispatch({
+      type: 'UPDATE_CHILD',
+      payload: {
+        phone: editChild.phone,
+        name: editName.trim(),
+        avatarEmoji: editEmoji,
+      },
+    });
+    closeEditModal();
+  }
+
   function handleRemove(childPhone: string, childName: string) {
     Alert.alert(
       'Fjern barn',
@@ -122,6 +162,13 @@ export default function FamilyScreen() {
                   <Text style={styles.childName}>{child.name}</Text>
                   <Text style={styles.childPhone}>{child.phone}</Text>
                 </View>
+                <TouchableOpacity
+                  onPress={() => openEditModal(child)}
+                  style={styles.editIconBtn}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Feather name="edit-2" size={16} color={Colors.textSecondary} />
+                </TouchableOpacity>
                 <Button
                   label="Fjern"
                   onPress={() => handleRemove(child.phone, child.name)}
@@ -141,6 +188,53 @@ export default function FamilyScreen() {
           style={styles.addButton}
         />
       </ScreenContainer>
+
+      {/* Edit child modal */}
+      <Modal visible={editModalVisible} animationType="slide" transparent onRequestClose={closeEditModal}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <Text style={styles.modalTitle}>Rediger barn</Text>
+
+            <Input
+              label="Navn"
+              placeholder="Barnets navn"
+              value={editName}
+              onChangeText={setEditName}
+              accentColor={Colors.adultPrimary}
+              autoCapitalize="words"
+              returnKeyType="done"
+              containerStyle={styles.fieldSpacing}
+            />
+            {editNameError ? <Text style={styles.errorText}>{editNameError}</Text> : null}
+
+            <Text style={styles.fieldLabel}>Velg avatar</Text>
+            <View style={styles.emojiGrid}>
+              {EMOJI_OPTIONS.map((emoji) => (
+                <TouchableOpacity
+                  key={emoji}
+                  style={[
+                    styles.emojiOption,
+                    editEmoji === emoji && styles.emojiOptionSelected,
+                  ]}
+                  onPress={() => setEditEmoji(emoji)}
+                >
+                  <Text style={styles.emojiText}>{emoji}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Button
+              label="Lagre"
+              onPress={handleEditSave}
+              accentColor={Colors.adultPrimary}
+              style={styles.saveButton}
+            />
+            <TouchableOpacity style={styles.cancelLink} onPress={closeEditModal}>
+              <Text style={styles.cancelLinkText}>Avbryt</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Add child modal */}
       <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={closeModal}>
@@ -254,6 +348,10 @@ const styles = StyleSheet.create({
   childPhone: {
     fontSize: FontSize.label,
     color: Colors.textSecondary,
+  },
+  editIconBtn: {
+    padding: Spacing.xs,
+    marginRight: Spacing.sm,
   },
   removeBtn: {
     paddingHorizontal: Spacing.md,

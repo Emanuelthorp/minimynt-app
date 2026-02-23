@@ -1,6 +1,7 @@
 import React from 'react';
 import { Text, View, StyleSheet } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { Feather } from '@expo/vector-icons';
 import {
   Colors, FontSize, FontWeight, FontFamily,
   Spacing, Layout, LineHeight, Radius, Elevation,
@@ -92,7 +93,11 @@ export default function WaitingScreen() {
           {/* Godkjent — venter Vipps */}
           {godkjentTasks.length > 0 && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Godkjent — venter Vipps</Text>
+              <Text style={styles.sectionTitle}>Godkjent — venter på Vipps</Text>
+              <View style={styles.approvedNote}>
+                <Feather name="clock" size={13} color={Colors.statusWarning} />
+                <Text style={styles.approvedNoteText}>Venter på Vipps-betaling</Text>
+              </View>
               {godkjentTasks.map((task, i) => (
                 <Animated.View
                   key={task.id}
@@ -112,10 +117,14 @@ export default function WaitingScreen() {
             </View>
           )}
 
-          {/* Utbetalt */}
+          {/* Betalt */}
           {betaltTasks.length > 0 && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Utbetalt</Text>
+              <Text style={styles.sectionTitle}>Betalt</Text>
+              <View style={styles.paidCelebration}>
+                <Feather name="check-circle" size={15} color={Colors.brand} />
+                <Text style={styles.paidCelebrationText}>Betalt! 🎉</Text>
+              </View>
               {betaltTasks.map((task, i) => (
                 <Animated.View
                   key={task.id}
@@ -254,5 +263,31 @@ const styles = StyleSheet.create({
   },
   rewardBrand: {
     color: Colors.brand,
+  },
+  approvedNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: Spacing.sm,
+  },
+  approvedNoteText: {
+    fontSize: FontSize.caption,
+    fontWeight: FontWeight.medium,
+    fontFamily: FontFamily.medium,
+    color: Colors.statusWarning,
+    lineHeight: LineHeight.tight,
+  },
+  paidCelebration: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: Spacing.sm,
+  },
+  paidCelebrationText: {
+    fontSize: FontSize.caption,
+    fontWeight: FontWeight.semibold,
+    fontFamily: FontFamily.semibold,
+    color: Colors.brand,
+    lineHeight: LineHeight.tight,
   },
 });

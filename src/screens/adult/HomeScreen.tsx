@@ -75,6 +75,12 @@ export default function HomeScreen() {
   const pendingApproval = countByStatus('Ferdig');
   const hasAnyTasks = tasks.length > 0;
 
+  // Stats strip calculations
+  const totalEarned = tasks
+    .filter((t) => t.status === 'Godkjent' || t.status === 'Betalt')
+    .reduce((sum, t) => sum + t.reward, 0);
+  const paidOutThisMonth = ledger.paidOutThisMonth;
+
   return (
     <ScreenContainer bg={Colors.bgPrimary}>
       {/* ── Header ── */}
@@ -153,8 +159,8 @@ export default function HomeScreen() {
       {hasAnyTasks && (
         <Animated.View entering={FadeInDown.delay(150).duration(300)} style={styles.statsRow}>
           <View style={styles.statTile}>
-            <Text style={styles.statValue}>{tasks.length}</Text>
-            <Text style={styles.statLabel}>Totalt</Text>
+            <Text style={styles.statValue}>{totalEarned} kr</Text>
+            <Text style={styles.statLabel}>Total</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statTile}>
@@ -166,7 +172,7 @@ export default function HomeScreen() {
           <View style={styles.statDivider} />
           <View style={styles.statTile}>
             <Text style={[styles.statValue, { color: Colors.brand }]}>
-              {countByStatus('Betalt')}
+              {paidOutThisMonth} kr
             </Text>
             <Text style={styles.statLabel}>Betalt</Text>
           </View>

@@ -53,7 +53,7 @@ function DevRoleSwitcher() {
   if (!__DEV__) return null;
 
   const switchTo = (role: 'adult' | 'child') => {
-    const phone = role === 'adult' ? '99999999' : '88888888';
+    const phone = role === 'adult' ? '99999999' : '88888888'; // DEV ONLY — fake phone numbers
     if (role === 'adult') {
       dispatch({ type: 'SET_ADULT_PHONE', payload: phone });
     } else {
