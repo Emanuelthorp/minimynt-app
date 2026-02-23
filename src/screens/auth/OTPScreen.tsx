@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
@@ -11,16 +10,25 @@ import {
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
-import { Colors, Spacing, Radius, FontSize, FontWeight } from '../../constants/tokens';
+import {
+  Colors,
+  Spacing,
+  Radius,
+  FontSize,
+  FontWeight,
+  FontFamily,
+  LineHeight,
+  Layout,
+} from '../../constants/tokens';
 import { useAppContext } from '../../store/AppContext';
 import { AuthStackParamList } from '../../navigation/RootNavigator';
-
-type OTPNavigationProp = StackNavigationProp<AuthStackParamList, 'OTP'>;
-type OTPRouteProp = RouteProp<AuthStackParamList, 'OTP'>;
+import Input from '../../components/Input';
+import Button from '../../components/Button';
+import { Feather } from '@expo/vector-icons';
 
 type Props = {
-  navigation: OTPNavigationProp;
-  route: OTPRouteProp;
+  navigation: StackNavigationProp<AuthStackParamList, 'OTP'>;
+  route: RouteProp<AuthStackParamList, 'OTP'>;
 };
 
 const VALID_OTP = '1234';
@@ -32,15 +40,14 @@ export default function OTPScreen({ navigation, route }: Props) {
   const [error, setError] = useState('');
 
   const isAdult = role === 'adult';
-  const bg = isAdult ? Colors.adultBg : Colors.childBg;
-  const cardBg = isAdult ? Colors.adultCard : Colors.childCard;
-  const accentColor = isAdult ? Colors.adultAccent : Colors.childAccent;
+  const accentColor = isAdult ? Colors.adultPrimary : Colors.brand;
+  const chipBg = isAdult ? Colors.adultSurface : Colors.brandSurface;
 
   function handleConfirm() {
     setError('');
 
     if (code !== VALID_OTP) {
-      setError('Feil kode. Prøv igjen.');
+      setError('Feil kode. Prøv igjen. (Demo-kode: 1234)');
       return;
     }
 
@@ -54,53 +61,64 @@ export default function OTPScreen({ navigation, route }: Props) {
   }
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: bg }]}>
+    <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <View style={styles.container}>
+          {/* Header */}
           <View style={styles.headerSection}>
+            <View style={[styles.phoneChip, { backgroundColor: chipBg }]}>
+              <Feather name="smartphone" size={14} color={accentColor} />
+              <Text style={[styles.phoneDisplay, { color: accentColor }]}>{phone}</Text>
+            </View>
             <Text style={styles.title}>Bekreft mobilnummer</Text>
-            <Text style={styles.phoneDisplay}>{phone}</Text>
+            <Text style={styles.hint}>
+              Vi har sendt en 4-sifret kode via SMS til ditt nummer.
+            </Text>
           </View>
 
-          <View style={[styles.formCard, { backgroundColor: cardBg }]}>
-            <Text style={styles.label}>SMS-kode</Text>
-            <TextInput
-              style={styles.input}
-              keyboardType="numeric"
-              maxLength={4}
-              placeholder="••••"
-              placeholderTextColor={Colors.textMuted}
+          {/* Form */}
+          <View style={styles.formSection}>
+            <Input
+              label="SMS-kode"
+              placeholder="• • • •"
               value={code}
               onChangeText={(text) => {
                 setCode(text);
                 setError('');
               }}
+              accentColor={accentColor}
+              keyboardType="numeric"
+              maxLength={4}
               returnKeyType="done"
-              secureTextEntry={false}
-              textAlign="center"
+              onSubmitEditing={handleConfirm}
+              style={styles.codeInput}
             />
 
             {error.length > 0 && (
-              <Text style={styles.errorText}>{error}</Text>
+              <View style={styles.errorRow}>
+                <Feather name="alert-circle" size={13} color={Colors.statusDanger} />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
             )}
 
-            <TouchableOpacity
-              style={[styles.button, { backgroundColor: accentColor }]}
+            <Button
+              label="Bekreft"
               onPress={handleConfirm}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.buttonText}>Bekreft</Text>
-            </TouchableOpacity>
+              accentColor={accentColor}
+              disabled={code.length === 0}
+              style={styles.confirmButton}
+            />
           </View>
 
+          {/* Back link */}
           <TouchableOpacity
             style={styles.backLink}
             onPress={() => navigation.goBack()}
           >
-            <Text style={styles.backLinkText}>Tilbake</Text>
+            <Text style={styles.backLinkText}>← Tilbake</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -111,6 +129,7 @@ export default function OTPScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+    backgroundColor: Colors.bgPrimary,
   },
   flex: {
     flex: 1,
@@ -119,72 +138,81 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.xl,
-    justifyContent: 'space-between',
     paddingBottom: Spacing.xl,
+    justifyContent: 'space-between',
+    maxWidth: Layout.appMaxWidth,
+    width: '100%',
+    alignSelf: 'center',
   },
   headerSection: {
     alignItems: 'center',
     marginBottom: Spacing.xl,
   },
-  title: {
-    fontSize: FontSize.xl,
-    fontWeight: FontWeight.bold,
-    color: Colors.text,
-    marginBottom: Spacing.sm,
-    textAlign: 'center',
+  phoneChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs + 2,
+    borderRadius: Radius.full,
+    marginBottom: Spacing.lg,
   },
   phoneDisplay: {
-    fontSize: FontSize.lg,
-    color: Colors.textMuted,
-    textAlign: 'center',
-    letterSpacing: 2,
+    fontSize: FontSize.body,
+    fontWeight: FontWeight.semibold,
+    fontFamily: FontFamily.semibold,
+    letterSpacing: 1,
   },
-  formCard: {
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-  },
-  label: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
+  title: {
+    fontSize: FontSize.title,
+    fontWeight: FontWeight.bold,
+    fontFamily: FontFamily.bold,
+    color: Colors.textPrimary,
+    lineHeight: LineHeight.loose,
     marginBottom: Spacing.sm,
-    fontWeight: FontWeight.medium,
+    textAlign: 'center',
   },
-  input: {
-    backgroundColor: Colors.adultBg,
-    color: Colors.text,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    fontSize: FontSize.xxl,
-    marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    letterSpacing: 8,
+  hint: {
+    fontSize: FontSize.label,
+    fontFamily: FontFamily.regular,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: LineHeight.normal,
+    maxWidth: 260,
+  },
+  formSection: {
+    gap: Spacing.sm,
+  },
+  codeInput: {
+    textAlign: 'center',
+    fontSize: FontSize.display,
+    fontFamily: FontFamily.bold,
+    letterSpacing: 12,
+  },
+  errorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    justifyContent: 'center',
   },
   errorText: {
-    fontSize: FontSize.sm,
-    color: Colors.danger,
-    marginBottom: Spacing.md,
+    fontSize: FontSize.label,
+    fontFamily: FontFamily.regular,
+    color: Colors.statusDanger,
+    lineHeight: LineHeight.tight,
     textAlign: 'center',
   },
-  button: {
-    borderRadius: Radius.md,
-    paddingVertical: Spacing.md,
-    alignItems: 'center',
-    marginTop: Spacing.sm,
-  },
-  buttonText: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
-    color: Colors.text,
+  confirmButton: {
+    marginTop: Spacing.xs,
   },
   backLink: {
     alignItems: 'center',
     paddingVertical: Spacing.md,
   },
   backLinkText: {
-    fontSize: FontSize.md,
-    color: Colors.textMuted,
-    textDecorationLine: 'underline',
+    fontSize: FontSize.body,
+    fontFamily: FontFamily.regular,
+    color: Colors.textSecondary,
+    lineHeight: LineHeight.normal,
   },
 });

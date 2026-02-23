@@ -6,7 +6,7 @@ import React, {
   useState,
 } from 'react';
 import { AppState, Action, initialState } from './types';
-import { loadState, saveState } from './persistence';
+import { loadState, saveState, clearState } from './persistence';
 
 // ── Reducer ────────────────────────────────────────────────────────────────
 
@@ -125,6 +125,8 @@ interface AppContextValue {
   state: AppState;
   dispatch: React.Dispatch<Action>;
   isLoading: boolean;
+  /** Clears AsyncStorage AND resets in-memory state atomically. Always use this for logout. */
+  logout: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | undefined>(undefined);
@@ -134,6 +136,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [isLoading, setIsLoading] = useState(true);
+
+  const logout = async () => {
+    await clearState();          // 1. Remove from AsyncStorage first
+    dispatch({ type: 'RESET_STATE' }); // 2. Reset in-memory state
+  };
 
   // Load persisted state on mount
   useEffect(() => {
@@ -160,7 +167,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [state, isLoading]);
 
   return (
-    <AppContext.Provider value={{ state, dispatch, isLoading }}>
+    <AppContext.Provider value={{ state, dispatch, isLoading, logout }}>
       {children}
     </AppContext.Provider>
   );

@@ -7,9 +7,27 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Colors, FontSize, FontWeight, Radius, Spacing } from '../../constants/tokens';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import {
+  Colors,
+  FontSize,
+  FontWeight,
+  FontFamily,
+  Radius,
+  Spacing,
+  Elevation,
+  Layout,
+  LineHeight,
+} from '../../constants/tokens';
 import { useAppContext } from '../../store/AppContext';
 import { Child, Task } from '../../store/types';
+import ScreenContainer from '../../components/ScreenContainer';
+import ScreenHeader from '../../components/ScreenHeader';
+import Card from '../../components/Card';
+import Button from '../../components/Button';
+import VippsButton from '../../components/VippsButton';
+import ListRow from '../../components/ListRow';
+import EmptyState from '../../components/EmptyState';
 
 interface VippsTarget {
   child: Child;
@@ -23,10 +41,8 @@ export default function ApprovalScreen() {
 
   const [vippsTarget, setVippsTarget] = useState<VippsTarget | null>(null);
 
-  // Tasks awaiting approval
   const pendingTasks = tasks.filter((t) => t.status === 'Ferdig');
 
-  // Group pending by child phone
   const pendingByChild: Record<string, Task[]> = {};
   for (const task of pendingTasks) {
     const key = task.takenBy ?? '__unknown__';
@@ -34,7 +50,6 @@ export default function ApprovalScreen() {
     pendingByChild[key].push(task);
   }
 
-  // Children with approved (Godkjent), unpaid tasks
   const vippsTargets: VippsTarget[] = children
     .map((child) => {
       const approved = tasks.filter(
@@ -65,175 +80,204 @@ export default function ApprovalScreen() {
     setVippsTarget(null);
   }
 
-  return (
-    <View style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Godkjenninger</Text>
-        </View>
+  // Navy badge showing pending count for the header
+  const pendingBadge =
+    pendingTasks.length > 0 ? (
+      <View style={styles.headerBadge}>
+        <Text style={styles.headerBadgeText}>{pendingTasks.length}</Text>
+      </View>
+    ) : undefined;
 
-        {/* Pending approvals */}
-        <Text style={styles.sectionLabel}>Venter godkjenning</Text>
+  return (
+    <View style={styles.wrapper}>
+      <ScreenContainer bg={Colors.bgPrimary}>
+        <ScreenHeader title="Godkjenninger" right={pendingBadge} />
+
+        {/* ── Pending approvals ── */}
+        <Text style={styles.sectionLabel}>Venter på godkjenning</Text>
 
         {pendingTasks.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyEmoji}>✅</Text>
-            <Text style={styles.emptyTitle}>Ingen ventende godkjenninger</Text>
-            <Text style={styles.emptySubtitle}>
-              Barn som markerer oppgaver som ferdige vil dukke opp her.
-            </Text>
-          </View>
+          <Card elevation="md">
+            <EmptyState
+              icon="check-square"
+              title="Ingen ventende godkjenninger"
+              subtitle="Barn som markerer oppgaver som ferdige vil dukke opp her."
+              accentColor={Colors.adultPrimary}
+            />
+          </Card>
         ) : (
-          Object.entries(pendingByChild).map(([phone, childTasks]) => {
+          Object.entries(pendingByChild).map(([phone, childTasks], groupIndex) => {
             const child = getChild(phone);
             const displayName = child
               ? `${child.avatarEmoji} ${child.name}`
               : phone;
             return (
               <View key={phone}>
-                <Text style={styles.childGroupLabel}>{displayName}</Text>
-                {childTasks.map((task) => (
-                  <View key={task.id} style={styles.approvalCard}>
-                    <View style={styles.approvalCardHeader}>
-                      <Text style={styles.approvalTaskTitle} numberOfLines={1}>
-                        {task.title}
-                      </Text>
-                      <Text style={styles.approvalReward}>{task.reward} kr</Text>
-                    </View>
-                    {task.description ? (
-                      <Text style={styles.approvalDesc} numberOfLines={2}>
-                        {task.description}
-                      </Text>
-                    ) : null}
-                    <View style={styles.approvalActions}>
-                      <TouchableOpacity
-                        style={styles.approveButton}
-                        onPress={() => handleApprove(task.id)}
-                      >
-                        <Text style={styles.approveButtonText}>Godkjenn</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.rejectButton}
-                        onPress={() => handleReject(task.id)}
-                      >
-                        <Text style={styles.rejectButtonText}>Avvis</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
+                {/* Child header chip */}
+                <View style={styles.childChip}>
+                  <Text style={styles.childChipText}>{displayName}</Text>
+                </View>
+
+                {childTasks.map((task, taskIndex) => (
+                  <Animated.View
+                    key={task.id}
+                    entering={FadeInDown.delay(
+                      groupIndex * 100 + taskIndex * 60
+                    ).duration(300)}
+                  >
+                    <Card elevation="md">
+                      {/* Title row + reward badge */}
+                      <View style={styles.approvalCardHeader}>
+                        <Text style={styles.approvalTaskTitle} numberOfLines={1}>
+                          {task.title}
+                        </Text>
+                        <View style={styles.rewardBadge}>
+                          <Text style={styles.rewardBadgeText}>
+                            {task.reward} kr
+                          </Text>
+                        </View>
+                      </View>
+
+                      {task.description ? (
+                        <Text style={styles.approvalDesc} numberOfLines={2}>
+                          {task.description}
+                        </Text>
+                      ) : null}
+
+                      {/* Action buttons */}
+                      <View style={styles.approvalActions}>
+                        <Button
+                          label="Godkjenn"
+                          onPress={() => handleApprove(task.id)}
+                          accentColor={Colors.brand}
+                          style={styles.actionBtn}
+                        />
+                        <Button
+                          label="Avvis"
+                          onPress={() => handleReject(task.id)}
+                          variant="secondary"
+                          accentColor={Colors.statusDanger}
+                          style={styles.actionBtn}
+                        />
+                      </View>
+                    </Card>
+                  </Animated.View>
                 ))}
               </View>
             );
           })
         )}
 
-        {/* Vipps payouts section */}
-        <Text style={[styles.sectionLabel, { marginTop: Spacing.lg }]}>
+        {/* ── Vipps payouts section ── */}
+        <Text style={[styles.sectionLabel, styles.sectionLabelGap]}>
           Vipps-utbetalinger
         </Text>
 
         {vippsTargets.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyEmoji}>💸</Text>
-            <Text style={styles.emptyTitle}>Ingen godkjente utbetalinger</Text>
-            <Text style={styles.emptySubtitle}>
-              Godkjente oppgaver som ennå ikke er betalt vil vises her.
-            </Text>
-          </View>
+          <Card elevation="md">
+            <EmptyState
+              icon="credit-card"
+              title="Ingen godkjente utbetalinger"
+              subtitle="Godkjente oppgaver som ennå ikke er betalt vil vises her."
+              accentColor={Colors.adultPrimary}
+            />
+          </Card>
         ) : (
-          vippsTargets.map(({ child, tasks: childTasks, total }) => (
-            <View key={child.phone} style={styles.vippsCard}>
-              <View style={styles.vippsChildRow}>
-                <Text style={styles.vippsAvatar}>{child.avatarEmoji}</Text>
-                <View style={styles.vippsChildInfo}>
-                  <Text style={styles.vippsChildName}>{child.name}</Text>
-                  <Text style={styles.vippsChildPhone}>{child.phone}</Text>
-                  <Text style={styles.vippsTaskCount}>
-                    {childTasks.length} godkjent{childTasks.length !== 1 ? 'e' : ''} oppgave{childTasks.length !== 1 ? 'r' : ''}
-                  </Text>
+          vippsTargets.map(({ child, tasks: childTasks, total }, index) => (
+            <Animated.View
+              key={child.phone}
+              entering={FadeIn.delay(index * 80).duration(300)}
+            >
+              <Card elevation="md">
+                <View style={styles.vippsChildRow}>
+                  <Text style={styles.vippsAvatar}>{child.avatarEmoji}</Text>
+                  <View style={styles.vippsChildInfo}>
+                    <Text style={styles.vippsChildName}>{child.name}</Text>
+                    <Text style={styles.vippsChildPhone}>{child.phone}</Text>
+                    <Text style={styles.vippsTaskCount}>
+                      {childTasks.length} godkjent
+                      {childTasks.length !== 1 ? 'e' : ''} oppgave
+                      {childTasks.length !== 1 ? 'r' : ''}
+                    </Text>
+                  </View>
+                  <Text style={styles.vippsTotal}>{total} kr</Text>
                 </View>
-                <Text style={styles.vippsTotal}>{total} kr</Text>
-              </View>
-              <TouchableOpacity
-                style={styles.vippsButton}
-                onPress={() => setVippsTarget({ child, tasks: childTasks, total })}
-              >
-                <Text style={styles.vippsButtonText}>Betal via Vipps</Text>
-              </TouchableOpacity>
-            </View>
+                <VippsButton
+                  onPress={() =>
+                    setVippsTarget({ child, tasks: childTasks, total })
+                  }
+                />
+              </Card>
+            </Animated.View>
           ))
         )}
 
         <View style={{ height: Spacing.xl }} />
-      </ScrollView>
+      </ScreenContainer>
 
-      {/* Vipps payment Modal */}
+      {/* ── Vipps payment bottom sheet ── */}
       <Modal
         visible={vippsTarget !== null}
         animationType="slide"
         transparent
         onRequestClose={() => setVippsTarget(null)}
       >
-        <View style={styles.modalOverlay}>
+        <Animated.View entering={FadeIn.duration(200)} style={styles.modalOverlay}>
           {vippsTarget && (
             <View style={styles.modalSheet}>
-              {/* Vipps branding header */}
-              <View style={styles.vippsBrandHeader}>
-                <View style={styles.vippsBrandBadge}>
-                  <Text style={styles.vippsBrandText}>Vipps</Text>
-                </View>
-              </View>
-
               <Text style={styles.modalTitle}>Send betaling</Text>
 
-              {/* Summary */}
-              <View style={styles.vippsModalSummary}>
-                <View style={styles.vippsModalRow}>
-                  <Text style={styles.vippsModalLabel}>Mottaker</Text>
-                  <Text style={styles.vippsModalValue}>
-                    {vippsTarget.child.avatarEmoji} {vippsTarget.child.name}
-                  </Text>
-                </View>
-                <View style={styles.vippsModalRow}>
-                  <Text style={styles.vippsModalLabel}>Telefon</Text>
-                  <Text style={styles.vippsModalValue}>{vippsTarget.child.phone}</Text>
-                </View>
-                <View style={styles.vippsModalRow}>
-                  <Text style={styles.vippsModalLabel}>Oppgaver</Text>
-                  <Text style={styles.vippsModalValue}>{vippsTarget.tasks.length} stk</Text>
-                </View>
-                <View style={[styles.vippsModalRow, styles.vippsModalTotalRow]}>
-                  <Text style={styles.vippsModalTotalLabel}>Totalbeløp</Text>
-                  <Text style={styles.vippsModalTotalValue}>{vippsTarget.total} kr</Text>
-                </View>
-              </View>
+              <Card style={styles.summaryCard}>
+                <ListRow
+                  title="Mottaker"
+                  right={
+                    <Text style={styles.summaryValue}>
+                      {vippsTarget.child.avatarEmoji} {vippsTarget.child.name}
+                    </Text>
+                  }
+                />
+                <ListRow
+                  title="Telefon"
+                  right={
+                    <Text style={styles.summaryValue}>
+                      {vippsTarget.child.phone}
+                    </Text>
+                  }
+                />
+                <ListRow
+                  title="Oppgaver"
+                  right={
+                    <Text style={styles.summaryValue}>
+                      {vippsTarget.tasks.length} stk
+                    </Text>
+                  }
+                />
+                <ListRow
+                  title="Totalbeløp"
+                  right={
+                    <Text style={styles.totalValue}>
+                      {vippsTarget.total} kr
+                    </Text>
+                  }
+                  showDivider={false}
+                />
+              </Card>
 
               {/* Task breakdown */}
               {vippsTarget.tasks.map((t) => (
-                <View key={t.id} style={styles.vippsTaskRow}>
-                  <Text style={styles.vippsTaskTitle} numberOfLines={1}>{t.title}</Text>
-                  <Text style={styles.vippsTaskReward}>{t.reward} kr</Text>
+                <View key={t.id} style={styles.taskBreakdownRow}>
+                  <Text style={styles.taskBreakdownTitle} numberOfLines={1}>
+                    {t.title}
+                  </Text>
+                  <Text style={styles.taskBreakdownReward}>{t.reward} kr</Text>
                 </View>
               ))}
 
-              {/* Mock Vipps pay button */}
-              <TouchableOpacity
-                style={styles.vippsPayButton}
+              <VippsButton
+                label={`Betal ${vippsTarget.total} kr med Vipps`}
                 onPress={() => handleMarkPaid(vippsTarget)}
-              >
-                <Text style={styles.vippsPayButtonLabel}>Vipps</Text>
-                <Text style={styles.vippsPayButtonAmount}>{vippsTarget.total} kr til {vippsTarget.child.name}</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.markPaidButton}
-                onPress={() => handleMarkPaid(vippsTarget)}
-              >
-                <Text style={styles.markPaidButtonText}>Marker som betalt</Text>
-              </TouchableOpacity>
+                style={styles.payButton}
+              />
 
               <TouchableOpacity
                 style={styles.cancelLink}
@@ -243,73 +287,64 @@ export default function ApprovalScreen() {
               </TouchableOpacity>
             </View>
           )}
-        </View>
+        </Animated.View>
       </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  wrapper: {
     flex: 1,
-    backgroundColor: Colors.adultBg,
   },
-  content: {
-    padding: Spacing.lg,
-  },
-  header: {
-    marginBottom: Spacing.lg,
-  },
-  title: {
-    fontSize: FontSize.xxl,
-    fontWeight: FontWeight.bold,
-    color: Colors.text,
-  },
-  sectionLabel: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.semibold,
-    color: Colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: Spacing.sm,
-  },
-  emptyCard: {
-    backgroundColor: Colors.adultCard,
-    borderRadius: Radius.md,
-    padding: Spacing.xl,
+  // Header badge
+  headerBadge: {
+    backgroundColor: Colors.adultPrimary,
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+    minWidth: 24,
     alignItems: 'center',
-    marginBottom: Spacing.sm,
+    justifyContent: 'center',
   },
-  emptyEmoji: {
-    fontSize: 40,
-    marginBottom: Spacing.sm,
+  headerBadgeText: {
+    fontSize: FontSize.caption,
+    fontWeight: FontWeight.bold,
+    fontFamily: FontFamily.bold,
+    color: Colors.textInverse,
+    lineHeight: LineHeight.tight,
   },
-  emptyTitle: {
-    fontSize: FontSize.md,
+  // Section labels — sentence case, 13px semibold
+  sectionLabel: {
+    fontSize: FontSize.label,
     fontWeight: FontWeight.semibold,
-    color: Colors.text,
-    marginBottom: Spacing.xs,
-    textAlign: 'center',
+    fontFamily: FontFamily.semibold,
+    color: Colors.textSecondary,
+    letterSpacing: 0.3,
+    lineHeight: LineHeight.tight,
+    marginBottom: Spacing.sm,
   },
-  emptySubtitle: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
-    textAlign: 'center',
-    lineHeight: 20,
+  sectionLabelGap: {
+    marginTop: Layout.sectionGap,
   },
-  childGroupLabel: {
-    fontSize: FontSize.md,
+  // Child chip
+  childChip: {
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.adultSurface,
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.sm2,
+    paddingVertical: 4,
+    marginBottom: Spacing.sm,
+    marginTop: Spacing.xs,
+  },
+  childChipText: {
+    fontSize: FontSize.label,
     fontWeight: FontWeight.semibold,
-    color: Colors.adultAccent,
-    marginBottom: Spacing.sm,
-    marginTop: Spacing.sm,
+    fontFamily: FontFamily.semibold,
+    color: Colors.adultPrimary,
+    lineHeight: LineHeight.tight,
   },
-  approvalCard: {
-    backgroundColor: Colors.adultCard,
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-    marginBottom: Spacing.sm,
-  },
+  // Approval card
   approvalCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -317,59 +352,44 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   approvalTaskTitle: {
-    fontSize: FontSize.md,
+    fontSize: FontSize.body,
     fontWeight: FontWeight.semibold,
-    color: Colors.text,
+    fontFamily: FontFamily.semibold,
+    color: Colors.textPrimary,
+    lineHeight: LineHeight.normal,
     flex: 1,
     marginRight: Spacing.sm,
   },
-  approvalReward: {
-    fontSize: FontSize.md,
+  rewardBadge: {
+    backgroundColor: Colors.adultPrimary,
+    borderRadius: Radius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  rewardBadgeText: {
+    fontSize: FontSize.label,
     fontWeight: FontWeight.bold,
-    color: Colors.adultAccent,
+    fontFamily: FontFamily.bold,
+    color: Colors.textInverse,
+    lineHeight: LineHeight.tight,
   },
   approvalDesc: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
+    fontSize: FontSize.label,
+    fontFamily: FontFamily.regular,
+    color: Colors.textSecondary,
+    lineHeight: LineHeight.normal,
+    marginTop: Spacing.xs,
     marginBottom: Spacing.sm,
-    lineHeight: 18,
   },
   approvalActions: {
     flexDirection: 'row',
-    gap: Spacing.sm,
-    marginTop: Spacing.sm,
+    gap: Layout.buttonGroupGap,
+    marginTop: Spacing.sm2,
   },
-  approveButton: {
+  actionBtn: {
     flex: 1,
-    backgroundColor: Colors.success,
-    borderRadius: Radius.sm,
-    paddingVertical: Spacing.sm,
-    alignItems: 'center',
   },
-  approveButtonText: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.bold,
-    color: Colors.text,
-  },
-  rejectButton: {
-    flex: 1,
-    backgroundColor: Colors.danger,
-    borderRadius: Radius.sm,
-    paddingVertical: Spacing.sm,
-    alignItems: 'center',
-  },
-  rejectButtonText: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.bold,
-    color: Colors.text,
-  },
-  // Vipps cards
-  vippsCard: {
-    backgroundColor: Colors.adultCard,
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-    marginBottom: Spacing.sm,
-  },
+  // Vipps payout cards
   vippsChildRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -383,162 +403,104 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   vippsChildName: {
-    fontSize: FontSize.md,
+    fontSize: FontSize.body,
     fontWeight: FontWeight.semibold,
-    color: Colors.text,
+    fontFamily: FontFamily.semibold,
+    color: Colors.textPrimary,
+    lineHeight: LineHeight.normal,
   },
   vippsChildPhone: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
+    fontSize: FontSize.label,
+    fontFamily: FontFamily.regular,
+    color: Colors.textSecondary,
+    lineHeight: LineHeight.tight,
   },
   vippsTaskCount: {
-    fontSize: FontSize.xs,
-    color: Colors.textMuted,
+    fontSize: FontSize.caption,
+    fontFamily: FontFamily.regular,
+    color: Colors.textTertiary,
+    lineHeight: LineHeight.tight,
     marginTop: 2,
   },
   vippsTotal: {
-    fontSize: FontSize.xl,
+    fontSize: FontSize.title,
     fontWeight: FontWeight.bold,
-    color: Colors.adultAccent,
+    fontFamily: FontFamily.bold,
+    color: Colors.adultPrimary,
+    lineHeight: LineHeight.loose,
   },
-  vippsButton: {
-    backgroundColor: '#FF5B24',
-    borderRadius: Radius.sm,
-    paddingVertical: Spacing.sm,
-    alignItems: 'center',
-  },
-  vippsButtonText: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.bold,
-    color: Colors.text,
-  },
-  // Vipps modal
+  // Payment modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.75)',
+    backgroundColor: Colors.overlayScrim,
     justifyContent: 'flex-end',
   },
   modalSheet: {
-    backgroundColor: Colors.adultCard,
-    borderTopLeftRadius: Radius.lg,
-    borderTopRightRadius: Radius.lg,
-    padding: Spacing.lg,
-    paddingBottom: Spacing.xl,
-    maxHeight: '90%',
-  },
-  vippsBrandHeader: {
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  vippsBrandBadge: {
-    backgroundColor: '#FF5B24',
-    borderRadius: Radius.xl,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-  },
-  vippsBrandText: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.extrabold,
-    color: Colors.text,
-    letterSpacing: 1,
+    backgroundColor: Colors.bgPrimary,
+    borderTopLeftRadius: Radius.xl,
+    borderTopRightRadius: Radius.xl,
+    padding: Layout.modalPadding,
+    paddingBottom: Layout.modalPaddingBottom,
+    maxHeight: '90%' as any,
   },
   modalTitle: {
-    fontSize: FontSize.xl,
+    fontSize: FontSize.title,
     fontWeight: FontWeight.bold,
-    color: Colors.text,
+    fontFamily: FontFamily.bold,
+    color: Colors.textPrimary,
+    lineHeight: LineHeight.loose,
     textAlign: 'center',
-    marginBottom: Spacing.md,
+    marginBottom: Layout.modalTitleGap,
   },
-  vippsModalSummary: {
-    backgroundColor: Colors.adultBg,
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
+  summaryCard: {
+    marginBottom: Spacing.sm,
   },
-  vippsModalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: Spacing.xs,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  vippsModalTotalRow: {
-    borderBottomWidth: 0,
-    marginTop: Spacing.xs,
-  },
-  vippsModalLabel: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
-  },
-  vippsModalValue: {
-    fontSize: FontSize.sm,
+  summaryValue: {
+    fontSize: FontSize.label,
     fontWeight: FontWeight.medium,
-    color: Colors.text,
+    fontFamily: FontFamily.medium,
+    color: Colors.textPrimary,
+    lineHeight: LineHeight.tight,
   },
-  vippsModalTotalLabel: {
-    fontSize: FontSize.md,
+  totalValue: {
+    fontSize: FontSize.title,
     fontWeight: FontWeight.bold,
-    color: Colors.text,
+    fontFamily: FontFamily.bold,
+    color: Colors.adultPrimary,
+    lineHeight: LineHeight.loose,
   },
-  vippsModalTotalValue: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-    color: Colors.adultAccent,
-  },
-  vippsTaskRow: {
+  taskBreakdownRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
   },
-  vippsTaskTitle: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
+  taskBreakdownTitle: {
+    fontSize: FontSize.label,
+    fontFamily: FontFamily.regular,
+    color: Colors.textSecondary,
+    lineHeight: LineHeight.tight,
     flex: 1,
     marginRight: Spacing.sm,
   },
-  vippsTaskReward: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
+  taskBreakdownReward: {
+    fontSize: FontSize.label,
+    fontFamily: FontFamily.regular,
+    color: Colors.textSecondary,
+    lineHeight: LineHeight.tight,
   },
-  vippsPayButton: {
-    backgroundColor: '#FF5B24',
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-    alignItems: 'center',
-    marginTop: Spacing.md,
+  payButton: {
+    marginTop: Spacing.lg,
     marginBottom: Spacing.sm,
-  },
-  vippsPayButtonLabel: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.semibold,
-    color: 'rgba(255,255,255,0.8)',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  vippsPayButtonAmount: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
-    color: Colors.text,
-    marginTop: 2,
-  },
-  markPaidButton: {
-    backgroundColor: Colors.success,
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
-  },
-  markPaidButtonText: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
-    color: Colors.text,
   },
   cancelLink: {
     alignItems: 'center',
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.md,
   },
   cancelLinkText: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
+    fontSize: FontSize.label,
+    fontFamily: FontFamily.regular,
+    color: Colors.textSecondary,
+    lineHeight: LineHeight.tight,
   },
 });

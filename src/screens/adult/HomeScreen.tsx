@@ -1,195 +1,329 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { Text, View, StyleSheet } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { Colors, FontSize, FontWeight, Radius, Spacing } from '../../constants/tokens';
+  Colors,
+  FontSize,
+  FontWeight,
+  FontFamily,
+  Spacing,
+  Radius,
+  LineHeight,
+  StatusColor,
+  Elevation,
+  Layout,
+} from '../../constants/tokens';
 import { useAppContext } from '../../store/AppContext';
 import { TaskStatus } from '../../store/types';
+import ScreenContainer from '../../components/ScreenContainer';
+import Card from '../../components/Card';
+import EmptyState from '../../components/EmptyState';
+import PiggyLogo from '../../components/PiggyLogo';
+import { SkeletonBlock } from '../../components/SkeletonLoader';
 
-const STATUS_LABELS: { status: TaskStatus; label: string }[] = [
-  { status: 'Ledig', label: 'Ledig' },
-  { status: 'Tatt', label: 'Tatt' },
-  { status: 'Ferdig', label: 'Ferdig / venter godkjenning' },
-  { status: 'Godkjent', label: 'Godkjent' },
-  { status: 'Betalt', label: 'Betalt' },
+const STATUS_ROWS: { status: TaskStatus; label: string; icon: string }[] = [
+  { status: 'Ledig',    label: 'Ledige oppgaver',           icon: 'circle' },
+  { status: 'Tatt',     label: 'Pågående',                  icon: 'clock' },
+  { status: 'Ferdig',   label: 'Venter på godkjenning',     icon: 'alert-circle' },
+  { status: 'Godkjent', label: 'Godkjent',                  icon: 'check-circle' },
+  { status: 'Betalt',   label: 'Utbetalt',                  icon: 'dollar-sign' },
 ];
 
+function HomeScreenSkeleton() {
+  return (
+    <View>
+      {/* Header row */}
+      <SkeletonBlock width="60%" height={24} style={styles.skeletonHeader} />
+      {/* Hero card */}
+      <SkeletonBlock width="100%" height={120} borderRadius={16} style={styles.skeletonHero} />
+      {/* 3 status rows */}
+      <SkeletonBlock width="100%" height={52} style={styles.skeletonRow} />
+      <SkeletonBlock width="100%" height={52} style={styles.skeletonRow} />
+      <SkeletonBlock width="100%" height={52} style={styles.skeletonRow} />
+    </View>
+  );
+}
+
 export default function HomeScreen() {
-  const { state } = useAppContext();
+  const { state, isLoading } = useAppContext();
   const { ledger, tasks, adultPhone } = state;
+
+  // Keep skeleton visible for at least 800ms
+  const [showSkeleton, setShowSkeleton] = useState(isLoading);
+
+  useEffect(() => {
+    if (isLoading) {
+      setShowSkeleton(true);
+    } else {
+      const timer = setTimeout(() => setShowSkeleton(false), 800);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading]);
+
+  if (showSkeleton) {
+    return (
+      <ScreenContainer bg={Colors.bgPrimary}>
+        <HomeScreenSkeleton />
+      </ScreenContainer>
+    );
+  }
 
   const countByStatus = (status: TaskStatus): number =>
     tasks.filter((t) => t.status === status).length;
 
+  const pendingApproval = countByStatus('Ferdig');
+  const hasAnyTasks = tasks.length > 0;
+
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Oversikt</Text>
-        {adultPhone ? (
-          <Text style={styles.subtitle}>Logget inn som {adultPhone}</Text>
-        ) : null}
-      </View>
-
-      {/* Ledger cards */}
-      <Text style={styles.sectionLabel}>Økonomi denne måneden</Text>
-      <View style={styles.row}>
-        <View style={[styles.card, styles.cardHalf]}>
-          <Text style={styles.cardLabel}>Utbetalt denne måneden</Text>
-          <Text style={styles.cardValue}>{ledger.paidOutThisMonth} kr</Text>
-          <Text style={styles.cardSub}>{ledger.month}</Text>
+    <ScreenContainer bg={Colors.bgPrimary}>
+      {/* ── Header ── */}
+      <Animated.View entering={FadeInDown.duration(300)} style={styles.header}>
+        <View>
+          <Text style={styles.greeting}>God dag</Text>
+          <Text style={styles.phone}>{adultPhone ?? ''}</Text>
         </View>
-        <View style={[styles.card, styles.cardHalf]}>
-          <Text style={styles.cardLabel}>Gebyr påløpt</Text>
-          <Text style={[styles.cardValue, styles.feeValue]}>
-            {ledger.feeDue.toFixed(2)} kr
-          </Text>
-          <Text style={styles.cardSub}>0,1% av utbetalinger</Text>
-        </View>
-      </View>
+        <PiggyLogo size={38} color={Colors.adultPrimary} />
+      </Animated.View>
 
-      {/* Task status counts */}
-      <Text style={styles.sectionLabel}>Oppgavestatus</Text>
-      <View style={styles.card}>
-        {STATUS_LABELS.map(({ status, label }) => (
-          <View key={status} style={styles.statusRow}>
-            <Text style={styles.statusLabel}>{label}</Text>
-            <View style={[styles.badge, getBadgeStyle(status)]}>
-              <Text style={styles.badgeText}>{countByStatus(status)}</Text>
+      {/* ── Navy hero card ── */}
+      <Animated.View entering={FadeInDown.delay(50).duration(300)}>
+        <View style={styles.heroCard}>
+          <Text style={styles.heroLabel}>Utbetalt denne måneden</Text>
+          <Text style={styles.heroAmount}>{ledger.paidOutThisMonth} kr</Text>
+          {pendingApproval > 0 && (
+            <View style={styles.alertChip}>
+              <Text style={styles.alertChipText}>
+                ⚠ {pendingApproval} oppgave{pendingApproval !== 1 ? 'r' : ''} venter på godkjenning
+              </Text>
             </View>
-          </View>
-        ))}
-      </View>
-
-      {/* Total tasks */}
-      <View style={styles.card}>
-        <View style={styles.statusRow}>
-          <Text style={[styles.statusLabel, styles.bold]}>Totalt oppgaver</Text>
-          <View style={[styles.badge, { backgroundColor: Colors.adultAccent }]}>
-            <Text style={styles.badgeText}>{tasks.length}</Text>
-          </View>
+          )}
         </View>
-      </View>
-    </ScrollView>
+      </Animated.View>
+
+      {/* ── Section label ── */}
+      <Text style={styles.sectionTitle}>Oppgavestatus</Text>
+
+      {/* ── Status list ── */}
+      {hasAnyTasks ? (
+        <Animated.View entering={FadeInDown.delay(100).duration(300)}>
+          <Card elevation="md">
+            {STATUS_ROWS.map(({ status, label, icon }, index) => {
+              const count = countByStatus(status);
+              const color = StatusColor[status];
+              return (
+                <View
+                  key={status}
+                  style={[
+                    styles.statusRow,
+                    index < STATUS_ROWS.length - 1 && styles.statusRowDivider,
+                  ]}
+                >
+                  <View style={styles.statusLeft}>
+                    <View style={[styles.iconWrap, { backgroundColor: `${color}14` }]}>
+                      <Feather name={icon as any} size={14} color={color} />
+                    </View>
+                    <Text style={styles.statusLabel}>{label}</Text>
+                  </View>
+                  <Text
+                    style={[
+                      styles.statusCount,
+                      count > 0 ? { color } : { color: Colors.textTertiary },
+                    ]}
+                  >
+                    {count}
+                  </Text>
+                </View>
+              );
+            })}
+          </Card>
+        </Animated.View>
+      ) : (
+        <Card elevation="md">
+          <EmptyState
+            icon="clipboard"
+            title="Ingen oppgaver ennå"
+            subtitle="Gå til Oppgaver-fanen for å opprette din første oppgave."
+            accentColor={Colors.adultPrimary}
+          />
+        </Card>
+      )}
+
+      {/* ── Stats strip ── */}
+      {hasAnyTasks && (
+        <Animated.View entering={FadeInDown.delay(150).duration(300)} style={styles.statsRow}>
+          <View style={styles.statTile}>
+            <Text style={styles.statValue}>{tasks.length}</Text>
+            <Text style={styles.statLabel}>Totalt</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statTile}>
+            <Text style={[styles.statValue, { color: Colors.statusWarning }]}>
+              {pendingApproval}
+            </Text>
+            <Text style={styles.statLabel}>Venter</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statTile}>
+            <Text style={[styles.statValue, { color: Colors.brand }]}>
+              {countByStatus('Betalt')}
+            </Text>
+            <Text style={styles.statLabel}>Betalt</Text>
+          </View>
+        </Animated.View>
+      )}
+    </ScreenContainer>
   );
 }
 
-function getBadgeStyle(status: TaskStatus): { backgroundColor: string } {
-  switch (status) {
-    case 'Ledig':
-      return { backgroundColor: Colors.adultAccent };
-    case 'Tatt':
-      return { backgroundColor: Colors.warning };
-    case 'Ferdig':
-      return { backgroundColor: Colors.warning };
-    case 'Godkjent':
-      return { backgroundColor: Colors.success };
-    case 'Avvist':
-      return { backgroundColor: Colors.danger };
-    case 'Betalt':
-      return { backgroundColor: Colors.textMuted };
-    default:
-      return { backgroundColor: Colors.textMuted };
-  }
-}
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.adultBg,
+  skeletonHeader: {
+    marginBottom: Layout.sectionGap,
   },
-  content: {
-    padding: Spacing.lg,
-    paddingBottom: Spacing.xl,
+  skeletonHero: {
+    marginBottom: Layout.sectionGap,
+  },
+  skeletonRow: {
+    marginBottom: 8,
   },
   header: {
-    marginBottom: Spacing.lg,
-  },
-  title: {
-    fontSize: FontSize.xxl,
-    fontWeight: FontWeight.bold,
-    color: Colors.text,
-    marginBottom: Spacing.xs,
-  },
-  subtitle: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
-  },
-  sectionLabel: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.semibold,
-    color: Colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: Spacing.sm,
-    marginTop: Spacing.md,
-  },
-  row: {
     flexDirection: 'row',
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Layout.sectionGap,
   },
-  card: {
-    backgroundColor: Colors.adultCard,
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-    marginBottom: Spacing.sm,
-  },
-  cardHalf: {
-    flex: 1,
-  },
-  cardLabel: {
-    fontSize: FontSize.xs,
-    color: Colors.textMuted,
-    marginBottom: Spacing.xs,
-    fontWeight: FontWeight.medium,
-  },
-  cardValue: {
-    fontSize: FontSize.xl,
+  greeting: {
+    fontSize: FontSize.title,
     fontWeight: FontWeight.bold,
-    color: Colors.text,
+    fontFamily: FontFamily.bold,
+    color: Colors.textPrimary,
+    lineHeight: LineHeight.loose,
+  },
+  phone: {
+    fontSize: FontSize.label,
+    fontFamily: FontFamily.regular,
+    color: Colors.textSecondary,
+    lineHeight: LineHeight.normal,
+  },
+  heroCard: {
+    backgroundColor: Colors.adultPrimary,
+    borderRadius: Radius.lg,
+    padding: Layout.screenPadding,
+    marginBottom: Layout.sectionGap,
+    ...Elevation.md,
+  },
+  heroLabel: {
+    fontSize: FontSize.label,
+    fontFamily: FontFamily.medium,
+    fontWeight: FontWeight.medium,
+    color: 'rgba(255,255,255,0.70)',
+    lineHeight: LineHeight.normal,
+    letterSpacing: 0.3,
     marginBottom: Spacing.xs,
   },
-  feeValue: {
-    color: Colors.warning,
+  heroAmount: {
+    fontSize: FontSize.display,
+    fontFamily: FontFamily.bold,
+    fontWeight: FontWeight.bold,
+    color: Colors.textInverse,
+    lineHeight: LineHeight.hero,
   },
-  cardSub: {
-    fontSize: FontSize.xs,
-    color: Colors.textMuted,
+  alertChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: Spacing.sm,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignSelf: 'flex-start',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: Radius.full,
+  },
+  alertChipText: {
+    fontSize: FontSize.caption,
+    fontFamily: FontFamily.semibold,
+    fontWeight: FontWeight.semibold,
+    color: 'rgba(255,255,255,0.90)',
+    lineHeight: LineHeight.tight,
+  },
+  sectionTitle: {
+    fontSize: FontSize.label,
+    fontWeight: FontWeight.semibold,
+    fontFamily: FontFamily.semibold,
+    color: Colors.textSecondary,
+    letterSpacing: 0.3,
+    lineHeight: LineHeight.tight,
+    marginBottom: Spacing.sm,
   },
   statusRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: Spacing.sm,
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.sm + 2,
+    minHeight: Layout.listRowMinHeight,
+  },
+  statusRowDivider: {
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: Colors.borderSubtle,
   },
-  statusLabel: {
-    fontSize: FontSize.md,
-    color: Colors.text,
+  statusLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    flex: 1,
   },
-  bold: {
-    fontWeight: FontWeight.semibold,
-  },
-  badge: {
-    minWidth: 28,
+  iconWrap: {
+    width: 28,
     height: 28,
-    borderRadius: 14,
+    borderRadius: Radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: Spacing.sm,
   },
-  badgeText: {
-    fontSize: FontSize.sm,
+  statusLabel: {
+    fontSize: FontSize.body,
+    fontFamily: FontFamily.regular,
+    color: Colors.textPrimary,
+    lineHeight: LineHeight.normal,
+  },
+  statusCount: {
+    fontSize: FontSize.heading,
     fontWeight: FontWeight.bold,
-    color: Colors.text,
+    fontFamily: FontFamily.bold,
+    lineHeight: LineHeight.loose,
+    minWidth: 28,
+    textAlign: 'right',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.bgCard,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.borderDefault,
+    marginTop: Layout.cardGap,
+    paddingVertical: Layout.cardPadding,
+    ...Elevation.sm,
+  },
+  statTile: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: Colors.borderDefault,
+  },
+  statValue: {
+    fontSize: FontSize.title,
+    fontWeight: FontWeight.bold,
+    fontFamily: FontFamily.bold,
+    color: Colors.textPrimary,
+    lineHeight: LineHeight.loose,
+  },
+  statLabel: {
+    fontSize: FontSize.caption,
+    fontFamily: FontFamily.regular,
+    color: Colors.textSecondary,
+    lineHeight: LineHeight.tight,
+    marginTop: 1,
   },
 });

@@ -1,79 +1,138 @@
 import React from 'react';
 import { Text, View, Alert, StyleSheet } from 'react-native';
-import { Colors, FontSize, FontWeight, Spacing } from '../../constants/tokens';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import {
+  Colors, FontSize, FontWeight, FontFamily,
+  Spacing, Layout, LineHeight, Radius, Elevation,
+} from '../../constants/tokens';
 import { useAppContext } from '../../store/AppContext';
 import ScreenContainer from '../../components/ScreenContainer';
+import ScreenHeader from '../../components/ScreenHeader';
 import Card from '../../components/Card';
 import Button from '../../components/Button';
+import ListRow from '../../components/ListRow';
+import EmptyState from '../../components/EmptyState';
+import ProgressBar from '../../components/ProgressBar';
+import StatCard from '../../components/StatCard';
 
-const ProfileScreen: React.FC = () => {
-  const { state } = useAppContext();
+export default function ProfileScreen() {
+  const { state, logout } = useAppContext();
   const childPhone = state.childPhone ?? '';
 
   const child = state.children.find((c) => c.phone === childPhone) ?? null;
 
   const myTasks = state.tasks.filter((t) => t.takenBy === childPhone);
-  const takenCount = myTasks.length;
-  const doneCount = myTasks.filter((t) =>
-    ['Godkjent', 'Betalt'].includes(t.status)
-  ).length;
-  const totalEarned = myTasks
-    .filter((t) => t.status === 'Betalt')
-    .reduce((sum, t) => sum + t.reward, 0);
+  const takenCount  = myTasks.length;
+  const doneCount   = myTasks.filter((t) => ['Godkjent', 'Betalt'].includes(t.status)).length;
+  const totalEarned = myTasks.filter((t) => t.status === 'Betalt').reduce((s, t) => s + t.reward, 0);
+  const pendingKr   = myTasks.filter((t) => t.status === 'Godkjent').reduce((s, t) => s + t.reward, 0);
+
+  const completionRate = takenCount > 0 ? Math.round((doneCount / takenCount) * 100) : 0;
 
   const handleLogout = () => {
     Alert.alert(
-      'Rollen er låst',
-      'Rollen din er permanent. Kontakt kundeservice for å nullstille kontoen.',
-      [{ text: 'OK', style: 'default' }]
+      'Logg ut',
+      'Er du sikker? Du sendes tilbake til start.',
+      [
+        { text: 'Avbryt', style: 'cancel' },
+        {
+          text: 'Logg ut',
+          style: 'destructive',
+          onPress: () => logout(),
+        },
+      ]
     );
   };
 
   if (!child) {
     return (
-      <ScreenContainer bg={Colors.childBg}>
-        <Text style={styles.screenTitle}>Profil</Text>
-        <Card bg={Colors.childCard}>
-          <Text style={styles.notFoundText}>Profil ikke funnet</Text>
+      <ScreenContainer bg={Colors.bgPrimary}>
+        <ScreenHeader title="Min profil" />
+        <Card>
+          <EmptyState
+            icon="user-x"
+            title="Profil ikke funnet"
+            subtitle="Kontakt forelder for å bli registrert."
+            accentColor={Colors.brand}
+          />
         </Card>
       </ScreenContainer>
     );
   }
 
   return (
-    <ScreenContainer bg={Colors.childBg}>
-      <Text style={styles.screenTitle}>Profil</Text>
+    <ScreenContainer bg={Colors.bgPrimary}>
+      <ScreenHeader title="Min profil" />
 
-      <View style={styles.avatarSection}>
-        <Text style={styles.avatarEmoji}>{child.avatarEmoji}</Text>
-        <Text style={styles.childName}>{child.name}</Text>
-        <Text style={styles.childPhone}>{child.phone}</Text>
-      </View>
-
-      <Card bg={Colors.childCard} style={styles.statsCard}>
-        <Text style={styles.statsHeading}>Statistikk</Text>
-
-        <View style={styles.statRow}>
-          <Text style={styles.statLabel}>Oppgaver tatt</Text>
-          <Text style={styles.statValue}>{takenCount}</Text>
+      {/* Profile identity card */}
+      <Animated.View entering={FadeInDown.duration(300)}>
+        <View style={styles.profileCard}>
+          {/* Avatar */}
+          <View style={styles.avatarWrap}>
+            <Text style={styles.avatarEmoji}>{child.avatarEmoji}</Text>
+          </View>
+          {/* Name + phone */}
+          <View style={styles.profileInfo}>
+            <Text style={styles.profileName}>{child.name}</Text>
+            <Text style={styles.profilePhone}>{child.phone}</Text>
+          </View>
+          {/* Earned badge */}
+          <View style={styles.earnedBadge}>
+            <Text style={styles.earnedBadgeValue}>{totalEarned} kr</Text>
+            <Text style={styles.earnedBadgeLabel}>tjent</Text>
+          </View>
         </View>
+      </Animated.View>
 
-        <View style={styles.divider} />
+      {/* Stats row */}
+      <Animated.View
+        entering={FadeInDown.delay(60).duration(300)}
+        style={styles.statsRow}
+      >
+        <StatCard
+          label="Oppgaver tatt"
+          value={takenCount}
+          icon="list"
+          accent={Colors.adultPrimary}
+        />
+        <StatCard
+          label="Fullført"
+          value={doneCount}
+          icon="check-circle"
+          accent={Colors.statusSuccess}
+        />
+      </Animated.View>
 
-        <View style={styles.statRow}>
-          <Text style={styles.statLabel}>Oppgaver ferdig</Text>
-          <Text style={styles.statValue}>{doneCount}</Text>
-        </View>
+      {/* Completion progress */}
+      {takenCount > 0 && (
+        <Animated.View entering={FadeInDown.delay(120).duration(300)}>
+          <Card variant="outlined">
+            <ProgressBar
+              value={completionRate}
+              color={Colors.brand}
+              trackColor={Colors.borderDefault}
+              label="Fullføringsgrad"
+              sublabel={`${doneCount} av ${takenCount} oppgaver fullført`}
+              height={6}
+            />
+          </Card>
+        </Animated.View>
+      )}
 
-        <View style={styles.divider} />
-
-        <View style={styles.statRow}>
-          <Text style={styles.statLabel}>Total tjent</Text>
-          <Text style={[styles.statValue, styles.earnedValue]}>
-            {totalEarned} kr
-          </Text>
-        </View>
-      </Card>
+      {/* Pending payout */}
+      {pendingKr > 0 && (
+        <Animated.View entering={FadeInDown.delay(180).duration(300)}>
+          <Card>
+            <ListRow
+              title="Venter på Vipps"
+              right={
+                <Text style={styles.pendingAmount}>{pendingKr} kr</Text>
+              }
+              showDivider={false}
+            />
+          </Card>
+        </Animated.View>
+      )}
 
       <Button
         label="Logg ut"
@@ -83,77 +142,84 @@ const ProfileScreen: React.FC = () => {
       />
     </ScreenContainer>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  screenTitle: {
-    fontSize: FontSize.xl,
-    fontWeight: FontWeight.bold,
-    color: Colors.text,
-    marginBottom: Spacing.md,
-  },
-  avatarSection: {
+  profileCard: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.lg,
-    paddingVertical: Spacing.md,
+    backgroundColor: Colors.bgCard,
+    borderRadius: Radius.lg,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.borderDefault,
+    ...Elevation.md,
+  },
+  avatarWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.brandSurface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.sm2,
   },
   avatarEmoji: {
-    fontSize: 72,
+    fontSize: 30,
+  },
+  profileInfo: {
+    flex: 1,
+  },
+  profileName: {
+    fontSize: FontSize.heading,
+    fontFamily: FontFamily.bold,
+    fontWeight: FontWeight.bold,
+    color: Colors.textPrimary,
+    lineHeight: LineHeight.loose,
+  },
+  profilePhone: {
+    fontSize: FontSize.label,
+    fontFamily: FontFamily.regular,
+    color: Colors.textSecondary,
+    lineHeight: LineHeight.tight,
+    marginTop: 1,
+  },
+  earnedBadge: {
+    alignItems: 'center',
+    backgroundColor: Colors.brandSurface,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.sm2,
+    paddingVertical: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.borderBrand,
+  },
+  earnedBadgeValue: {
+    fontSize: FontSize.body,
+    fontFamily: FontFamily.bold,
+    fontWeight: FontWeight.bold,
+    color: Colors.brand,
+    lineHeight: LineHeight.normal,
+  },
+  earnedBadgeLabel: {
+    fontSize: FontSize.caption,
+    fontFamily: FontFamily.regular,
+    color: Colors.brandDeep,
+    lineHeight: LineHeight.tight,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
     marginBottom: Spacing.sm,
   },
-  childName: {
-    fontSize: FontSize.xl,
+  pendingAmount: {
+    fontSize: FontSize.body,
+    fontFamily: FontFamily.bold,
     fontWeight: FontWeight.bold,
-    color: Colors.text,
-    marginBottom: Spacing.xs,
-  },
-  childPhone: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.regular,
-    color: Colors.textMuted,
-  },
-  statsCard: {
-    marginBottom: Spacing.md,
-  },
-  statsHeading: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.semibold,
-    color: Colors.text,
-    marginBottom: Spacing.md,
-  },
-  statRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: Spacing.sm,
-  },
-  statLabel: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.regular,
-    color: Colors.textMuted,
-  },
-  statValue: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
-    color: Colors.text,
-  },
-  earnedValue: {
-    color: Colors.childAccent,
-    fontSize: FontSize.lg,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: Colors.border,
+    color: Colors.brand,
+    lineHeight: LineHeight.normal,
   },
   logoutButton: {
-    marginTop: Spacing.sm,
-  },
-  notFoundText: {
-    fontSize: FontSize.md,
-    color: Colors.textMuted,
-    textAlign: 'center',
-    paddingVertical: Spacing.sm,
+    marginTop: Layout.sectionGap,
   },
 });
-
-export default ProfileScreen;

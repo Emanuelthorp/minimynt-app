@@ -6,36 +6,31 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Colors, FontSize, FontWeight, Radius, Spacing } from '../../constants/tokens';
+import { Feather } from '@expo/vector-icons';
+import {
+  Colors,
+  FontSize,
+  FontWeight,
+  FontFamily,
+  Radius,
+  Spacing,
+  Elevation,
+  Layout,
+  LineHeight,
+} from '../../constants/tokens';
 import { useAppContext } from '../../store/AppContext';
-import { Task, TaskStatus, isTaskExpired } from '../../store/types';
-
-function statusBadgeColor(status: TaskStatus): string {
-  switch (status) {
-    case 'Ledig':
-      return Colors.adultAccent;
-    case 'Tatt':
-      return Colors.warning;
-    case 'Ferdig':
-      return Colors.warning;
-    case 'Godkjent':
-      return Colors.success;
-    case 'Avvist':
-      return Colors.danger;
-    case 'Betalt':
-      return Colors.textMuted;
-    default:
-      return Colors.textMuted;
-  }
-}
-
-function statusBadgeFontWeight(status: TaskStatus): '400' | '500' | '600' | '700' | '800' {
-  return status === 'Ferdig' ? FontWeight.bold : FontWeight.semibold;
-}
+import { Task, isTaskExpired } from '../../store/types';
+import ScreenContainer from '../../components/ScreenContainer';
+import ScreenHeader from '../../components/ScreenHeader';
+import Card from '../../components/Card';
+import Button from '../../components/Button';
+import StatusBadge from '../../components/StatusBadge';
+import Input from '../../components/Input';
+import ListRow from '../../components/ListRow';
+import EmptyState from '../../components/EmptyState';
 
 function formatDate(ts: number): string {
   return new Date(ts).toLocaleDateString('nb-NO', {
@@ -45,6 +40,9 @@ function formatDate(ts: number): string {
   });
 }
 
+// Tasks where reward chip is shown (active/available)
+const REWARD_CHIP_STATUSES = new Set(['Ledig', 'Tatt', 'Ferdig']);
+
 export default function TasksScreen() {
   const { state, dispatch } = useAppContext();
   const { tasks, children } = state;
@@ -52,7 +50,6 @@ export default function TasksScreen() {
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [detailTask, setDetailTask] = useState<Task | null>(null);
 
-  // Form state for new task
   const [formTitle, setFormTitle] = useState('');
   const [formDesc, setFormDesc] = useState('');
   const [formReward, setFormReward] = useState('');
@@ -126,70 +123,71 @@ export default function TasksScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Oppgaver</Text>
-          <Text style={styles.subtitle}>{tasks.length} oppgave{tasks.length !== 1 ? 'r' : ''} totalt</Text>
-        </View>
+      <ScreenContainer bg={Colors.bgPrimary}>
+        <ScreenHeader
+          title="Oppgaver"
+          subtitle={`${tasks.length} oppgave${tasks.length !== 1 ? 'r' : ''} totalt`}
+        />
 
-        {/* Task list */}
+        {/* ── Oppgaveliste ── */}
+        <Text style={styles.sectionLabel}>Alle oppgaver</Text>
+
         {sortedTasks.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyEmoji}>📋</Text>
-            <Text style={styles.emptyTitle}>Ingen oppgaver ennå</Text>
-            <Text style={styles.emptySubtitle}>
-              Trykk på + knappen for å opprette din første oppgave.
-            </Text>
-          </View>
+          <Card elevation="md">
+            <EmptyState
+              icon="clipboard"
+              title="Ingen oppgaver ennå"
+              subtitle="Trykk på + for å opprette din første oppgave."
+              accentColor={Colors.adultPrimary}
+            />
+          </Card>
         ) : (
           sortedTasks.map((task) => {
             const expired = isTaskExpired(task);
+            const showRewardChip = REWARD_CHIP_STATUSES.has(task.status);
             return (
-              <TouchableOpacity
+              <Card
                 key={task.id}
-                style={styles.taskCard}
+                elevation="md"
                 onPress={() => setDetailTask(task)}
-                activeOpacity={0.75}
+                style={expired ? styles.expiredCard : undefined}
               >
+                {/* Top row: title + status badge */}
                 <View style={styles.taskCardTop}>
                   <Text style={styles.taskTitle} numberOfLines={1}>
                     {task.title}
-                    {expired ? (
-                      <Text style={styles.expiredTag}> (Utgått)</Text>
-                    ) : null}
                   </Text>
-                  <View style={[styles.statusBadge, { backgroundColor: statusBadgeColor(task.status) }]}>
-                    <Text style={[styles.statusBadgeText, { fontWeight: statusBadgeFontWeight(task.status) }]}>
-                      {task.status}
-                    </Text>
-                  </View>
+                  <StatusBadge status={task.status} />
                 </View>
+
+                {/* Bottom row: reward chip or amount + taker + date */}
                 <View style={styles.taskCardBottom}>
-                  <Text style={styles.rewardText}>{task.reward} kr</Text>
+                  {showRewardChip ? (
+                    <View style={styles.rewardChip}>
+                      <Text style={styles.rewardChipText}>{task.reward} kr</Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.rewardText}>{task.reward} kr</Text>
+                  )}
                   {task.takenBy ? (
                     <Text style={styles.takenByText}>{getChildName(task.takenBy)}</Text>
                   ) : null}
                   <Text style={styles.dateText}>{formatDate(task.createdAt)}</Text>
                 </View>
-              </TouchableOpacity>
+              </Card>
             );
           })
         )}
 
-        {/* Bottom padding so FAB doesn't overlap last card */}
         <View style={{ height: 80 }} />
-      </ScrollView>
+      </ScreenContainer>
 
-      {/* Floating Action Button */}
+      {/* ── FAB ── */}
       <TouchableOpacity style={styles.fab} onPress={openAddModal} activeOpacity={0.85}>
-        <Text style={styles.fabText}>+</Text>
+        <Feather name="plus" size={24} color={Colors.textInverse} />
       </TouchableOpacity>
 
-      {/* Add Task Modal */}
+      {/* ── Legg til oppgave modal ── */}
       <Modal
         visible={addModalVisible}
         animationType="slide"
@@ -201,50 +199,59 @@ export default function TasksScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <View style={styles.modalSheet}>
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
               <Text style={styles.modalTitle}>Ny oppgave</Text>
 
-              <Text style={styles.fieldLabel}>Tittel</Text>
-              <TextInput
-                style={[styles.input, titleError ? styles.inputError : null]}
+              <Input
+                label="Tittel"
                 placeholder="Navn på oppgaven"
-                placeholderTextColor={Colors.textMuted}
                 value={formTitle}
                 onChangeText={setFormTitle}
+                accentColor={Colors.adultPrimary}
                 autoCapitalize="sentences"
                 returnKeyType="next"
+                containerStyle={styles.fieldSpacing}
               />
-              {titleError ? <Text style={styles.errorText}>{titleError}</Text> : null}
+              {titleError ? (
+                <Text style={styles.errorText}>{titleError}</Text>
+              ) : null}
 
-              <Text style={styles.fieldLabel}>Beskrivelse</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
+              <Input
+                label="Beskrivelse"
                 placeholder="Beskriv oppgaven (valgfritt)"
-                placeholderTextColor={Colors.textMuted}
                 value={formDesc}
                 onChangeText={setFormDesc}
+                accentColor={Colors.adultPrimary}
                 multiline
                 numberOfLines={3}
                 autoCapitalize="sentences"
-                returnKeyType="default"
-                textAlignVertical="top"
+                style={styles.textArea}
+                containerStyle={styles.fieldSpacing}
               />
 
-              <Text style={styles.fieldLabel}>Belønning (kr)</Text>
-              <TextInput
-                style={[styles.input, rewardError ? styles.inputError : null]}
+              <Input
+                label="Belønning (kr)"
                 placeholder="f.eks. 50"
-                placeholderTextColor={Colors.textMuted}
                 value={formReward}
                 onChangeText={setFormReward}
+                accentColor={Colors.adultPrimary}
                 keyboardType="decimal-pad"
                 returnKeyType="done"
+                containerStyle={styles.fieldSpacing}
               />
-              {rewardError ? <Text style={styles.errorText}>{rewardError}</Text> : null}
+              {rewardError ? (
+                <Text style={styles.errorText}>{rewardError}</Text>
+              ) : null}
 
-              <TouchableOpacity style={styles.saveButton} onPress={handleSaveTask}>
-                <Text style={styles.saveButtonText}>Lagre</Text>
-              </TouchableOpacity>
+              <Button
+                label="Lagre oppgave"
+                onPress={handleSaveTask}
+                accentColor={Colors.brand}
+                style={styles.saveButton}
+              />
               <TouchableOpacity style={styles.cancelLink} onPress={closeAddModal}>
                 <Text style={styles.cancelLinkText}>Avbryt</Text>
               </TouchableOpacity>
@@ -253,7 +260,7 @@ export default function TasksScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Task Detail Modal */}
+      {/* ── Oppgavedetalj modal ── */}
       <Modal
         visible={detailTask !== null}
         animationType="slide"
@@ -264,67 +271,59 @@ export default function TasksScreen() {
           {detailTask && (
             <View style={styles.modalSheet}>
               <ScrollView showsVerticalScrollIndicator={false}>
-                {/* Status badge */}
                 <View style={styles.detailHeaderRow}>
-                  <View
-                    style={[
-                      styles.statusBadgeLg,
-                      { backgroundColor: statusBadgeColor(detailTask.status) },
-                    ]}
-                  >
-                    <Text style={styles.statusBadgeLgText}>{detailTask.status}</Text>
-                  </View>
+                  <StatusBadge status={detailTask.status} size="md" />
                   {isTaskExpired(detailTask) && (
                     <Text style={styles.expiredTag}> (Utgått)</Text>
                   )}
                 </View>
 
                 <Text style={styles.detailTitle}>{detailTask.title}</Text>
-
                 {detailTask.description ? (
                   <Text style={styles.detailDesc}>{detailTask.description}</Text>
                 ) : null}
 
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailRowLabel}>Belønning</Text>
-                  <Text style={styles.detailRowValue}>{detailTask.reward} kr</Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailRowLabel}>Opprettet</Text>
-                  <Text style={styles.detailRowValue}>{formatDate(detailTask.createdAt)}</Text>
-                </View>
+                <ListRow
+                  title="Belønning"
+                  right={<Text style={styles.detailValue}>{detailTask.reward} kr</Text>}
+                />
+                <ListRow
+                  title="Opprettet"
+                  right={<Text style={styles.detailValue}>{formatDate(detailTask.createdAt)}</Text>}
+                />
                 {detailTask.takenBy && (
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailRowLabel}>Tatt av</Text>
-                    <Text style={styles.detailRowValue}>{getChildName(detailTask.takenBy)}</Text>
-                  </View>
+                  <ListRow
+                    title="Tatt av"
+                    right={<Text style={styles.detailValue}>{getChildName(detailTask.takenBy)}</Text>}
+                  />
                 )}
                 {detailTask.completedAt && (
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailRowLabel}>Fullført</Text>
-                    <Text style={styles.detailRowValue}>{formatDate(detailTask.completedAt)}</Text>
-                  </View>
+                  <ListRow
+                    title="Fullført"
+                    right={<Text style={styles.detailValue}>{formatDate(detailTask.completedAt)}</Text>}
+                  />
                 )}
                 {detailTask.approvedAt && (
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailRowLabel}>Godkjent / avvist</Text>
-                    <Text style={styles.detailRowValue}>{formatDate(detailTask.approvedAt)}</Text>
-                  </View>
+                  <ListRow
+                    title="Godkjent/avvist"
+                    right={<Text style={styles.detailValue}>{formatDate(detailTask.approvedAt)}</Text>}
+                  />
                 )}
                 {detailTask.paidAt && (
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailRowLabel}>Betalt ut</Text>
-                    <Text style={styles.detailRowValue}>{formatDate(detailTask.paidAt)}</Text>
-                  </View>
+                  <ListRow
+                    title="Utbetalt"
+                    right={<Text style={styles.detailValue}>{formatDate(detailTask.paidAt)}</Text>}
+                    showDivider={false}
+                  />
                 )}
 
                 {detailTask.status === 'Ledig' && (
-                  <TouchableOpacity
-                    style={styles.deleteButton}
+                  <Button
+                    label="Slett oppgave"
                     onPress={() => handleDeleteTask(detailTask)}
-                  >
-                    <Text style={styles.deleteButtonText}>Slett oppgave</Text>
-                  </TouchableOpacity>
+                    variant="danger"
+                    style={styles.deleteButton}
+                  />
                 )}
 
                 <TouchableOpacity
@@ -345,51 +344,18 @@ export default function TasksScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.adultBg,
   },
-  content: {
-    padding: Spacing.lg,
-  },
-  header: {
-    marginBottom: Spacing.lg,
-  },
-  title: {
-    fontSize: FontSize.xxl,
-    fontWeight: FontWeight.bold,
-    color: Colors.text,
-    marginBottom: Spacing.xs,
-  },
-  subtitle: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
-  },
-  emptyCard: {
-    backgroundColor: Colors.adultCard,
-    borderRadius: Radius.md,
-    padding: Spacing.xl,
-    alignItems: 'center',
-  },
-  emptyEmoji: {
-    fontSize: 48,
-    marginBottom: Spacing.md,
-  },
-  emptyTitle: {
-    fontSize: FontSize.lg,
+  // Section label — sentence case, 13px semibold secondary
+  sectionLabel: {
+    fontSize: FontSize.label,
     fontWeight: FontWeight.semibold,
-    color: Colors.text,
+    fontFamily: FontFamily.semibold,
+    color: Colors.textSecondary,
+    letterSpacing: 0.3,
+    lineHeight: LineHeight.tight,
     marginBottom: Spacing.sm,
   },
-  emptySubtitle: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
-    textAlign: 'center',
-  },
-  taskCard: {
-    backgroundColor: Colors.adultCard,
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-    marginBottom: Spacing.sm,
-  },
+  // Task cards
   taskCardTop: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -397,139 +363,128 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   taskTitle: {
-    fontSize: FontSize.md,
+    fontSize: FontSize.body,
     fontWeight: FontWeight.semibold,
-    color: Colors.text,
+    fontFamily: FontFamily.semibold,
+    color: Colors.textPrimary,
     flex: 1,
     marginRight: Spacing.sm,
+    lineHeight: LineHeight.normal,
+  },
+  expiredCard: {
+    opacity: 0.45,
   },
   expiredTag: {
-    fontSize: FontSize.xs,
-    color: Colors.textMuted,
-    fontWeight: FontWeight.regular,
-  },
-  statusBadge: {
-    borderRadius: Radius.sm,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-  },
-  statusBadgeText: {
-    fontSize: FontSize.xs,
-    color: Colors.text,
+    fontSize: FontSize.caption,
+    fontFamily: FontFamily.regular,
+    color: Colors.textTertiary,
+    lineHeight: LineHeight.tight,
   },
   taskCardBottom: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
+    gap: Spacing.sm,
+    marginTop: Spacing.xs,
   },
-  rewardText: {
-    fontSize: FontSize.sm,
+  // Navy reward chip — shown only for active/available tasks
+  rewardChip: {
+    backgroundColor: Colors.adultPrimary,
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+  },
+  rewardChipText: {
+    fontSize: FontSize.caption,
     fontWeight: FontWeight.bold,
-    color: Colors.adultAccent,
+    fontFamily: FontFamily.bold,
+    color: Colors.textInverse,
+    lineHeight: LineHeight.tight,
+  },
+  // Plain reward text for non-active tasks
+  rewardText: {
+    fontSize: FontSize.label,
+    fontWeight: FontWeight.medium,
+    fontFamily: FontFamily.medium,
+    color: Colors.textSecondary,
+    lineHeight: LineHeight.tight,
   },
   takenByText: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
+    fontSize: FontSize.label,
+    fontFamily: FontFamily.regular,
+    color: Colors.textSecondary,
     flex: 1,
+    lineHeight: LineHeight.tight,
   },
   dateText: {
-    fontSize: FontSize.xs,
-    color: Colors.textMuted,
+    fontSize: FontSize.caption,
+    fontFamily: FontFamily.regular,
+    color: Colors.textTertiary,
+    lineHeight: LineHeight.tight,
   },
   // FAB
   fab: {
     position: 'absolute',
-    bottom: Spacing.xl,
-    right: Spacing.lg,
+    bottom: Layout.fabBottom,
+    right: Layout.fabRight,
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: Colors.adultAccent,
+    backgroundColor: Colors.brand,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-  },
-  fabText: {
-    fontSize: 30,
-    color: Colors.text,
-    fontWeight: FontWeight.bold,
-    lineHeight: 34,
+    ...Elevation.md,
   },
   // Modals
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: Colors.overlayScrim,
     justifyContent: 'flex-end',
   },
   modalSheet: {
-    backgroundColor: Colors.adultCard,
+    backgroundColor: Colors.bgPrimary,
     borderTopLeftRadius: Radius.lg,
     borderTopRightRadius: Radius.lg,
-    padding: Spacing.lg,
-    paddingBottom: Spacing.xl,
-    maxHeight: '90%',
+    padding: Layout.modalPadding,
+    paddingBottom: Layout.modalPaddingBottom,
+    maxHeight: '90%' as any,
   },
   modalTitle: {
-    fontSize: FontSize.xl,
+    fontSize: FontSize.title,
     fontWeight: FontWeight.bold,
-    color: Colors.text,
-    marginBottom: Spacing.lg,
+    fontFamily: FontFamily.bold,
+    color: Colors.textPrimary,
+    lineHeight: LineHeight.loose,
+    marginBottom: Layout.modalTitleGap,
     textAlign: 'center',
   },
-  fieldLabel: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.semibold,
-    color: Colors.textMuted,
-    marginBottom: Spacing.xs,
-    marginTop: Spacing.sm,
-  },
-  input: {
-    backgroundColor: Colors.adultBg,
-    borderRadius: Radius.sm,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    color: Colors.text,
-    fontSize: FontSize.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    marginBottom: Spacing.xs,
+  fieldSpacing: {
+    marginBottom: Spacing.sm,
   },
   textArea: {
     height: 80,
+    textAlignVertical: 'top',
     paddingTop: Spacing.sm,
   },
-  inputError: {
-    borderColor: Colors.danger,
-  },
   errorText: {
-    fontSize: FontSize.xs,
-    color: Colors.danger,
+    fontSize: FontSize.caption,
+    fontFamily: FontFamily.regular,
+    color: Colors.statusDanger,
     marginBottom: Spacing.sm,
+    lineHeight: LineHeight.tight,
   },
   saveButton: {
-    backgroundColor: Colors.adultAccent,
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-    alignItems: 'center',
     marginTop: Spacing.md,
     marginBottom: Spacing.sm,
   },
-  saveButtonText: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
-    color: Colors.text,
-  },
   cancelLink: {
     alignItems: 'center',
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.md,
   },
   cancelLinkText: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
+    fontSize: FontSize.label,
+    fontFamily: FontFamily.regular,
+    color: Colors.textSecondary,
+    lineHeight: LineHeight.tight,
   },
   // Detail modal
   detailHeaderRow: {
@@ -537,55 +492,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.md,
   },
-  statusBadgeLg: {
-    borderRadius: Radius.sm,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-  },
-  statusBadgeLgText: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.bold,
-    color: Colors.text,
-  },
   detailTitle: {
-    fontSize: FontSize.xl,
+    fontSize: FontSize.title,
     fontWeight: FontWeight.bold,
-    color: Colors.text,
+    fontFamily: FontFamily.bold,
+    color: Colors.textPrimary,
+    lineHeight: LineHeight.loose,
     marginBottom: Spacing.sm,
   },
   detailDesc: {
-    fontSize: FontSize.md,
-    color: Colors.textMuted,
+    fontSize: FontSize.body,
+    fontFamily: FontFamily.regular,
+    color: Colors.textSecondary,
+    lineHeight: LineHeight.normal,
     marginBottom: Spacing.md,
-    lineHeight: 22,
   },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  detailRowLabel: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
-  },
-  detailRowValue: {
-    fontSize: FontSize.sm,
+  detailValue: {
+    fontSize: FontSize.label,
     fontWeight: FontWeight.medium,
-    color: Colors.text,
+    fontFamily: FontFamily.medium,
+    color: Colors.textPrimary,
+    lineHeight: LineHeight.tight,
   },
   deleteButton: {
-    backgroundColor: Colors.danger,
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-    alignItems: 'center',
     marginTop: Spacing.lg,
     marginBottom: Spacing.sm,
-  },
-  deleteButtonText: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
-    color: Colors.text,
   },
 });

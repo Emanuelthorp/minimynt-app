@@ -1,7 +1,8 @@
 import React from 'react';
-import { Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Colors } from '../constants/tokens';
+import { Feather } from '@expo/vector-icons';
+import { Colors, FontSize, FontWeight } from '../constants/tokens';
+
 import HomeScreen from '../screens/adult/HomeScreen';
 import FamilyScreen from '../screens/adult/FamilyScreen';
 import TasksScreen from '../screens/adult/TasksScreen';
@@ -15,57 +16,56 @@ export default function AdultTabs() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
+        tabBarActiveTintColor: Colors.adultPrimary,
+        tabBarInactiveTintColor: Colors.textTertiary,
         tabBarStyle: {
-          backgroundColor: Colors.adultCard,
-          borderTopColor: Colors.border,
+          backgroundColor: Colors.bgPrimary,
+          borderTopWidth: 1,
+          borderTopColor: Colors.borderSubtle,
+          paddingBottom: 6,
+          paddingTop: 4,
+          height: 60,
         },
-        tabBarActiveTintColor: Colors.adultAccent,
-        tabBarInactiveTintColor: Colors.textMuted,
+        tabBarLabelStyle: {
+          fontSize: FontSize.caption,
+          fontWeight: FontWeight.semibold,
+          marginTop: 1,
+        },
       }}
     >
       <Tab.Screen
         name="Hjem"
         component={HomeScreen}
         options={{
-          tabBarIcon: ({ color }) => (
-            <Text style={{ fontSize: 20, color }}>🏠</Text>
-          ),
+          tabBarIcon: ({ color, size }) => <Feather name="home" size={size} color={color} />,
         }}
       />
       <Tab.Screen
         name="Familie"
         component={FamilyScreen}
         options={{
-          tabBarIcon: ({ color }) => (
-            <Text style={{ fontSize: 20, color }}>👨‍👩‍👧</Text>
-          ),
+          tabBarIcon: ({ color, size }) => <Feather name="users" size={size} color={color} />,
         }}
       />
       <Tab.Screen
         name="Oppgaver"
         component={TasksScreen}
         options={{
-          tabBarIcon: ({ color }) => (
-            <Text style={{ fontSize: 20, color }}>✅</Text>
-          ),
+          tabBarIcon: ({ color, size }) => <Feather name="list" size={size} color={color} />,
         }}
       />
       <Tab.Screen
-        name="Godkjenninger"
+        name="Godkjenn"
         component={ApprovalScreen}
         options={{
-          tabBarIcon: ({ color }) => (
-            <Text style={{ fontSize: 20, color }}>👍</Text>
-          ),
+          tabBarIcon: ({ color, size }) => <Feather name="check-circle" size={size} color={color} />,
         }}
       />
       <Tab.Screen
         name="Profil"
         component={ProfileScreen}
         options={{
-          tabBarIcon: ({ color }) => (
-            <Text style={{ fontSize: 20, color }}>👤</Text>
-          ),
+          tabBarIcon: ({ color, size }) => <Feather name="user" size={size} color={color} />,
         }}
       />
     </Tab.Navigator>

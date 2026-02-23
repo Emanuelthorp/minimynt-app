@@ -2,56 +2,144 @@ import React from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   SafeAreaView,
+  ScrollView,
+  Platform,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { Colors, Spacing, Radius, FontSize, FontWeight } from '../../constants/tokens';
+import PiggyLogo from '../../components/PiggyLogo';
+import {
+  Colors,
+  Spacing,
+  Radius,
+  FontSize,
+  FontWeight,
+  FontFamily,
+  LineHeight,
+  Elevation,
+  Layout,
+} from '../../constants/tokens';
 import { AuthStackParamList } from '../../navigation/RootNavigator';
 
-type RoleSelectNavigationProp = StackNavigationProp<AuthStackParamList, 'RoleSelect'>;
-
 type Props = {
-  navigation: RoleSelectNavigationProp;
+  navigation: StackNavigationProp<AuthStackParamList, 'RoleSelect'>;
 };
+
+// ─── Role card sub-component ──────────────────────────────────────────────────
+
+function RoleCard({
+  icon,
+  title,
+  subtitle,
+  iconBg,
+  iconColor,
+  hoverBorderColor,
+  onPress,
+}: {
+  icon: keyof typeof Feather.glyphMap;
+  title: string;
+  subtitle: string;
+  iconBg: string;
+  iconColor: string;
+  hoverBorderColor: string;
+  onPress: () => void;
+}) {
+  const [hovered, setHovered] = React.useState(false);
+
+  return (
+    <Pressable
+      onPress={onPress}
+      // @ts-ignore — web-only pointer events
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => setHovered(false)}
+      style={[
+        styles.roleCard,
+        Elevation.md as any,
+        hovered && Platform.OS === 'web' && {
+          borderColor: hoverBorderColor,
+          transform: [{ translateY: -1 }],
+        },
+      ]}
+    >
+      {/* Icon circle */}
+      <View style={[styles.roleIconCircle, { backgroundColor: iconBg }]}>
+        <Feather name={icon} size={22} color={iconColor} />
+      </View>
+
+      {/* Text content */}
+      <View style={styles.roleTextContent}>
+        <Text style={styles.roleTitle}>{title}</Text>
+        <Text style={styles.roleSubtitle}>{subtitle}</Text>
+      </View>
+
+      {/* Chevron */}
+      <Feather name="chevron-right" size={18} color={Colors.textTertiary} />
+    </Pressable>
+  );
+}
+
+// ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function RoleSelectScreen({ navigation }: Props) {
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <View style={styles.headerSection}>
-          <Text style={styles.title}>MiniMynt</Text>
-          <Text style={styles.subtitle}>Familiens sparekonto</Text>
-        </View>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.container}>
 
-        <View style={styles.cardsSection}>
-          <TouchableOpacity
-            style={[styles.card, styles.adultCard]}
-            onPress={() => navigation.navigate('Phone', { role: 'adult' })}
-            activeOpacity={0.8}
+          {/* Brand section — FadeInDown from slightly above */}
+          <Animated.View
+            entering={FadeInDown.delay(0).duration(400)}
+            style={styles.brandSection}
           >
-            <Text style={styles.cardIcon}>👨‍👩‍👧</Text>
-            <Text style={styles.cardTitle}>Jeg er forelder</Text>
-            <Text style={styles.cardSubtitle}>Administrer familien</Text>
-          </TouchableOpacity>
+            <PiggyLogo size={56} color={Colors.brand} animate={false} />
+            <Text style={styles.brandName}>MiniMynt</Text>
+            <Text style={styles.brandTagline}>Familiens økonomiverktøy</Text>
+          </Animated.View>
 
-          <TouchableOpacity
-            style={[styles.card, styles.childCard]}
-            onPress={() => navigation.navigate('Phone', { role: 'child' })}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.cardIcon}>🧒</Text>
-            <Text style={styles.cardTitle}>Jeg er barn</Text>
-            <Text style={styles.cardSubtitle}>Se oppgaver og saldo</Text>
-          </TouchableOpacity>
-        </View>
+          {/* Role label */}
+          <Text style={styles.roleLabel}>Hvem logger inn?</Text>
 
-        <View style={styles.warningSection}>
-          <Text style={styles.warningText}>⚠️ Rolleval er permanent.</Text>
-          <Text style={styles.footnoteText}>Kontakt kundeservice for nullstilling.</Text>
+          {/* Role cards with staggered FadeInDown */}
+          <View style={styles.cardsStack}>
+            <Animated.View entering={FadeInDown.delay(0).duration(300)}>
+              <RoleCard
+                icon="users"
+                title="Forelder"
+                subtitle="Administrer oppgaver og godkjenn utbetalinger"
+                iconBg={Colors.adultSurface}
+                iconColor={Colors.adultPrimary}
+                hoverBorderColor={Colors.adultPrimary}
+                onPress={() => navigation.navigate('Phone', { role: 'adult' })}
+              />
+            </Animated.View>
+            <Animated.View entering={FadeInDown.delay(80).duration(300)}>
+              <RoleCard
+                icon="user"
+                title="Barn"
+                subtitle="Ta oppgaver og tjen penger på Vipps"
+                iconBg={Colors.brandSurface}
+                iconColor={Colors.brand}
+                hoverBorderColor={Colors.brand}
+                onPress={() => navigation.navigate('Phone', { role: 'child' })}
+              />
+            </Animated.View>
+          </View>
+
+          {/* Footer note */}
+          <View style={styles.footerNote}>
+            <Feather name="lock" size={11} color={Colors.textTertiary} />
+            <Text style={styles.footerNoteText}>Demo-kode: 1234</Text>
+          </View>
+
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -59,75 +147,103 @@ export default function RoleSelectScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.adultBg,
+    backgroundColor: Colors.bgPrimary,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   container: {
     flex: 1,
     paddingHorizontal: Spacing.lg,
-    justifyContent: 'space-between',
-    paddingVertical: Spacing.xl,
+    paddingTop: Spacing.xxl,
+    paddingBottom: Spacing.xl,
+    maxWidth: Layout.appMaxWidth,
+    width: '100%',
+    alignSelf: 'center',
   },
-  headerSection: {
+
+  // Brand
+  brandSection: {
     alignItems: 'center',
+    marginBottom: 40,
+  },
+  brandName: {
+    fontSize: FontSize.display,
+    fontWeight: FontWeight.bold,
+    fontFamily: FontFamily.bold,
+    color: Colors.textPrimary,
+    textAlign: 'center',
+    marginTop: 12,
+    marginBottom: Spacing.xs,
+  },
+  brandTagline: {
+    fontSize: FontSize.body,
+    fontFamily: FontFamily.regular,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginTop: Spacing.xs,
+  },
+
+  // Role label
+  roleLabel: {
+    fontSize: FontSize.label,
+    fontWeight: FontWeight.semibold,
+    fontFamily: FontFamily.semibold,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: Spacing.md,
+  },
+
+  // Cards
+  cardsStack: {
+    gap: 12,
+  },
+  roleCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.bgCard,
+    borderRadius: Radius.lg,
+    padding: 20,
+    borderWidth: 1.5,
+    borderColor: Colors.borderDefault,
+  },
+  roleIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  roleTextContent: {
+    flex: 1,
+    marginLeft: 14,
+  },
+  roleTitle: {
+    fontSize: FontSize.heading,
+    fontWeight: FontWeight.semibold,
+    fontFamily: FontFamily.semibold,
+    color: Colors.textPrimary,
+  },
+  roleSubtitle: {
+    fontSize: FontSize.label,
+    fontFamily: FontFamily.regular,
+    color: Colors.textSecondary,
+    lineHeight: 18,
+    marginTop: 3,
+  },
+
+  // Footer note
+  footerNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
     marginTop: Spacing.xl,
   },
-  title: {
-    fontSize: FontSize.xxl,
-    fontWeight: FontWeight.bold,
-    color: Colors.text,
-    marginBottom: Spacing.sm,
-  },
-  subtitle: {
-    fontSize: FontSize.md,
-    color: Colors.textMuted,
-  },
-  cardsSection: {
-    gap: Spacing.md,
-  },
-  card: {
-    borderRadius: Radius.lg,
-    padding: Spacing.xl,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  adultCard: {
-    backgroundColor: Colors.adultCard,
-  },
-  childCard: {
-    backgroundColor: Colors.childCard,
-  },
-  cardIcon: {
-    fontSize: 48,
-    marginBottom: Spacing.sm,
-  },
-  cardTitle: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-    color: Colors.text,
-    marginBottom: Spacing.xs,
-  },
-  cardSubtitle: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
-  },
-  warningSection: {
-    alignItems: 'center',
-    paddingBottom: Spacing.md,
-  },
-  warningText: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
-    color: Colors.danger,
-    marginBottom: Spacing.xs,
-    textAlign: 'center',
-  },
-  footnoteText: {
-    fontSize: FontSize.xs,
-    color: Colors.textMuted,
-    textAlign: 'center',
+  footerNoteText: {
+    fontSize: FontSize.caption,
+    fontFamily: FontFamily.regular,
+    color: Colors.textTertiary,
   },
 });

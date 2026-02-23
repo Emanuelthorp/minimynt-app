@@ -1,169 +1,258 @@
 import React from 'react';
 import { Text, View, StyleSheet } from 'react-native';
-import { Colors, FontSize, FontWeight, Spacing } from '../../constants/tokens';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import {
+  Colors, FontSize, FontWeight, FontFamily,
+  Spacing, Layout, LineHeight, Radius, Elevation,
+} from '../../constants/tokens';
 import { useAppContext } from '../../store/AppContext';
 import ScreenContainer from '../../components/ScreenContainer';
+import ScreenHeader from '../../components/ScreenHeader';
 import Card from '../../components/Card';
-import Badge from '../../components/Badge';
+import StatusBadge from '../../components/StatusBadge';
+import EmptyState from '../../components/EmptyState';
+import ProgressBar from '../../components/ProgressBar';
 
-const WaitingScreen: React.FC = () => {
+export default function WaitingScreen() {
   const { state } = useAppContext();
   const childPhone = state.childPhone ?? '';
 
   const myTasks = state.tasks.filter((t) => t.takenBy === childPhone);
 
-  const ferdigTasks = myTasks.filter((t) => t.status === 'Ferdig');
+  const ferdigTasks   = myTasks.filter((t) => t.status === 'Ferdig');
   const godkjentTasks = myTasks.filter((t) => t.status === 'Godkjent');
-  const betaltTasks = myTasks.filter((t) => t.status === 'Betalt');
+  const betaltTasks   = myTasks.filter((t) => t.status === 'Betalt');
 
-  const totalEarnedThisMonth = betaltTasks.reduce(
-    (sum, t) => sum + t.reward,
-    0
-  );
+  const totalPending  = ferdigTasks.reduce((s, t) => s + t.reward, 0);
+  const totalApproved = godkjentTasks.reduce((s, t) => s + t.reward, 0);
+  const totalPaid     = betaltTasks.reduce((s, t) => s + t.reward, 0);
+  const grandTotal    = totalPending + totalApproved + totalPaid;
 
-  const hasAnyTasks =
-    ferdigTasks.length > 0 ||
-    godkjentTasks.length > 0 ||
-    betaltTasks.length > 0;
+  const hasAnyTasks = ferdigTasks.length > 0 || godkjentTasks.length > 0 || betaltTasks.length > 0;
+
+  const paidProgress = grandTotal > 0 ? (totalPaid / grandTotal) * 100 : 0;
+  const totalNonLedig = myTasks.filter((t) => t.status !== 'Ledig').length;
 
   return (
-    <ScreenContainer bg={Colors.childBg}>
-      <Text style={styles.screenTitle}>Venter på betaling</Text>
+    <ScreenContainer bg={Colors.bgPrimary}>
+      <ScreenHeader title="Betalingsstatus" />
 
-      {!hasAnyTasks && (
-        <Card bg={Colors.childCard}>
-          <Text style={styles.emptyText}>
-            Du har ingen oppgaver under behandling
-          </Text>
-        </Card>
-      )}
-
-      {ferdigTasks.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Venter på godkjenning</Text>
-          {ferdigTasks.map((task) => (
-            <Card key={task.id} bg={Colors.childCard}>
-              <View style={styles.cardRow}>
-                <View style={styles.taskInfo}>
-                  <Text style={styles.taskTitle}>{task.title}</Text>
-                  <Text style={styles.reward}>{task.reward} kr</Text>
-                </View>
-                <Badge label="Venter..." color={Colors.warning} />
+      {hasAnyTasks ? (
+        <>
+          {/* Two-column summary card */}
+          <Animated.View entering={FadeInDown.duration(300)}>
+            <View style={styles.summaryCard}>
+              <View style={styles.summaryCol}>
+                <Text style={styles.summaryAmount}>{totalApproved + totalPending} kr</Text>
+                <Text style={styles.summaryLabel}>Venter</Text>
               </View>
-            </Card>
-          ))}
-        </View>
-      )}
-
-      {godkjentTasks.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Godkjent, ikke betalt</Text>
-          {godkjentTasks.map((task) => (
-            <Card key={task.id} bg={Colors.childCard}>
-              <View style={styles.cardRow}>
-                <View style={styles.taskInfo}>
-                  <Text style={styles.taskTitle}>{task.title}</Text>
-                  <Text style={styles.reward}>{task.reward} kr</Text>
-                </View>
-                <Badge label="Godkjent ✓" color={Colors.success} />
+              <View style={styles.summaryDivider} />
+              <View style={styles.summaryCol}>
+                <Text style={[styles.summaryAmount, styles.summaryAmountPaid]}>{totalPaid} kr</Text>
+                <Text style={styles.summaryLabel}>Utbetalt</Text>
               </View>
-            </Card>
-          ))}
-        </View>
-      )}
+            </View>
+          </Animated.View>
 
-      {betaltTasks.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Utbetalt</Text>
-          {betaltTasks.map((task) => (
-            <Card key={task.id} bg={Colors.childCard}>
-              <View style={styles.cardRow}>
-                <View style={styles.taskInfo}>
-                  <Text style={[styles.taskTitle, styles.dimText]}>
-                    {task.title}
-                  </Text>
-                  <Text style={[styles.reward, styles.dimText]}>
-                    {task.reward} kr
-                  </Text>
-                </View>
-                <Badge label="Betalt ✓" color={Colors.textMuted} />
-              </View>
-            </Card>
-          ))}
-        </View>
-      )}
+          {/* Overall payment progress */}
+          <Card variant="outlined" style={styles.progressCard}>
+            <ProgressBar
+              value={paidProgress}
+              color={Colors.brand}
+              trackColor={Colors.borderDefault}
+              label="Utbetalingsgrad"
+              sublabel={`${betaltTasks.length} av ${totalNonLedig} oppgaver utbetalt`}
+              height={6}
+            />
+          </Card>
 
-      {betaltTasks.length > 0 && (
-        <Card bg={Colors.childCard} style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Total tjent denne måneden</Text>
-          <Text style={styles.summaryAmount}>{totalEarnedThisMonth} kr</Text>
+          {/* Venter på godkjenning */}
+          {ferdigTasks.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Venter på godkjenning</Text>
+              {ferdigTasks.map((task, i) => (
+                <Animated.View
+                  key={task.id}
+                  entering={FadeInDown.delay(i * 50).duration(300)}
+                >
+                  <View style={[styles.taskCard, styles.taskCardPending, Elevation.sm]}>
+                    <View style={styles.cardRow}>
+                      <View style={styles.taskInfo}>
+                        <Text style={styles.taskTitle}>{task.title}</Text>
+                        <Text style={styles.reward}>{task.reward} kr</Text>
+                      </View>
+                      <StatusBadge status={task.status} />
+                    </View>
+                  </View>
+                </Animated.View>
+              ))}
+            </View>
+          )}
+
+          {/* Godkjent — venter Vipps */}
+          {godkjentTasks.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Godkjent — venter Vipps</Text>
+              {godkjentTasks.map((task, i) => (
+                <Animated.View
+                  key={task.id}
+                  entering={FadeInDown.delay(i * 50).duration(300)}
+                >
+                  <View style={[styles.taskCard, styles.taskCardApproved, Elevation.sm]}>
+                    <View style={styles.cardRow}>
+                      <View style={styles.taskInfo}>
+                        <Text style={styles.taskTitle}>{task.title}</Text>
+                        <Text style={[styles.reward, styles.rewardBrand]}>{task.reward} kr</Text>
+                      </View>
+                      <StatusBadge status={task.status} />
+                    </View>
+                  </View>
+                </Animated.View>
+              ))}
+            </View>
+          )}
+
+          {/* Utbetalt */}
+          {betaltTasks.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Utbetalt</Text>
+              {betaltTasks.map((task, i) => (
+                <Animated.View
+                  key={task.id}
+                  entering={FadeInDown.delay(i * 40).duration(300)}
+                >
+                  <View style={[styles.taskCard, styles.taskCardPaid]}>
+                    <View style={[styles.cardRow, styles.cardRowDim]}>
+                      <View style={styles.taskInfo}>
+                        <Text style={styles.taskTitle}>{task.title}</Text>
+                        <Text style={styles.reward}>{task.reward} kr</Text>
+                      </View>
+                      <StatusBadge status={task.status} />
+                    </View>
+                  </View>
+                </Animated.View>
+              ))}
+            </View>
+          )}
+        </>
+      ) : (
+        <Card>
+          <EmptyState
+            icon="clock"
+            title="Ingen oppgaver til behandling"
+            subtitle="Fullfør en oppgave — forelder godkjenner og du får penger på Vipps."
+            accentColor={Colors.brand}
+          />
         </Card>
       )}
     </ScreenContainer>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  screenTitle: {
-    fontSize: FontSize.xl,
+  summaryCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.bgCard,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    marginBottom: Layout.cardGap,
+    borderWidth: 1,
+    borderColor: Colors.borderDefault,
+    ...Elevation.md,
+  },
+  summaryCol: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  summaryAmount: {
+    fontSize: FontSize.title,
+    fontFamily: FontFamily.bold,
     fontWeight: FontWeight.bold,
-    color: Colors.text,
-    marginBottom: Spacing.md,
+    color: Colors.textSecondary,
+    lineHeight: LineHeight.loose,
+  },
+  summaryAmountPaid: {
+    color: Colors.brand,
+  },
+  summaryLabel: {
+    fontSize: FontSize.caption,
+    fontFamily: FontFamily.regular,
+    color: Colors.textTertiary,
+    lineHeight: LineHeight.tight,
+    marginTop: 1,
+  },
+  summaryDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: Colors.borderDefault,
+    alignSelf: 'center',
+    marginHorizontal: Spacing.md,
+  },
+  progressCard: {
+    marginBottom: Layout.cardGap,
   },
   section: {
-    marginBottom: Spacing.sm,
+    marginTop: Layout.sectionGap,
+    marginBottom: Spacing.xs,
   },
   sectionTitle: {
-    fontSize: FontSize.sm,
+    fontSize: FontSize.label,
     fontWeight: FontWeight.semibold,
-    color: Colors.textMuted,
-    marginBottom: Spacing.xs,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    fontFamily: FontFamily.semibold,
+    color: Colors.textSecondary,
+    letterSpacing: 0.3,
+    lineHeight: LineHeight.tight,
+    marginBottom: Spacing.sm,
+  },
+  taskCard: {
+    backgroundColor: Colors.bgCard,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.borderDefault,
+    overflow: 'hidden',
+  },
+  taskCardPending: {
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.statusWarning,
+  },
+  taskCardApproved: {
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.brand,
+  },
+  taskCardPaid: {
+    // no elevation, opacity handled by cardRowDim
   },
   cardRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  cardRowDim: {
+    opacity: 0.5,
+  },
   taskInfo: {
     flex: 1,
     marginRight: Spacing.sm,
   },
   taskTitle: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
-    color: Colors.text,
+    fontSize: FontSize.body,
+    fontWeight: FontWeight.semibold,
+    fontFamily: FontFamily.semibold,
+    color: Colors.textPrimary,
+    lineHeight: LineHeight.normal,
     marginBottom: Spacing.xs,
   },
   reward: {
-    fontSize: FontSize.lg,
+    fontSize: FontSize.label,
     fontWeight: FontWeight.bold,
-    color: Colors.childAccent,
+    fontFamily: FontFamily.bold,
+    color: Colors.textSecondary,
+    lineHeight: LineHeight.tight,
   },
-  dimText: {
-    opacity: 0.6,
-  },
-  emptyText: {
-    fontSize: FontSize.md,
-    color: Colors.textMuted,
-    textAlign: 'center',
-    paddingVertical: Spacing.sm,
-  },
-  summaryCard: {
-    marginTop: Spacing.sm,
-    alignItems: 'center',
-  },
-  summaryLabel: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
-    marginBottom: Spacing.xs,
-  },
-  summaryAmount: {
-    fontSize: FontSize.xxl,
-    fontWeight: FontWeight.extrabold,
-    color: Colors.childAccent,
+  rewardBrand: {
+    color: Colors.brand,
   },
 });
-
-export default WaitingScreen;

@@ -2,25 +2,33 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
-import { Colors, Spacing, Radius, FontSize, FontWeight } from '../../constants/tokens';
+import {
+  Colors,
+  Spacing,
+  FontSize,
+  FontWeight,
+  FontFamily,
+  LineHeight,
+  Layout,
+  Radius,
+} from '../../constants/tokens';
 import { useAppContext } from '../../store/AppContext';
 import { AuthStackParamList } from '../../navigation/RootNavigator';
-
-type PhoneNavigationProp = StackNavigationProp<AuthStackParamList, 'Phone'>;
-type PhoneRouteProp = RouteProp<AuthStackParamList, 'Phone'>;
+import Input from '../../components/Input';
+import Button from '../../components/Button';
 
 type Props = {
-  navigation: PhoneNavigationProp;
-  route: PhoneRouteProp;
+  navigation: StackNavigationProp<AuthStackParamList, 'Phone'>;
+  route: RouteProp<AuthStackParamList, 'Phone'>;
 };
 
 export default function PhoneScreen({ navigation, route }: Props) {
@@ -30,8 +38,8 @@ export default function PhoneScreen({ navigation, route }: Props) {
   const [error, setError] = useState('');
 
   const isAdult = role === 'adult';
-  const bg = isAdult ? Colors.adultBg : Colors.childBg;
-  const cardBg = isAdult ? Colors.adultCard : Colors.childCard;
+  const accentColor = isAdult ? Colors.adultPrimary : Colors.brand;
+  const surfaceColor = isAdult ? Colors.adultSurface : Colors.brandSurface;
 
   function handleSend() {
     setError('');
@@ -44,7 +52,7 @@ export default function PhoneScreen({ navigation, route }: Props) {
     if (role === 'child') {
       const found = state.children.some((child) => child.phone === phone);
       if (!found) {
-        setError('Ikke registrert barn.');
+        setError('Ikke registrert barn. Be forelder registrere deg først.');
         return;
       }
     }
@@ -53,50 +61,68 @@ export default function PhoneScreen({ navigation, route }: Props) {
   }
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: bg }]}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: Colors.bgPrimary }]}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <View style={styles.container}>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Text style={styles.backButtonText}>← Tilbake</Text>
+            <Feather name="arrow-left" size={20} color={Colors.textSecondary} />
+            <Text style={styles.backButtonText}>Tilbake</Text>
           </TouchableOpacity>
+
+          {/* Role indicator */}
+          <View style={[styles.roleIndicator, { backgroundColor: surfaceColor }]}>
+            <Feather
+              name={isAdult ? 'users' : 'user'}
+              size={16}
+              color={accentColor}
+            />
+            <Text style={[styles.roleLabel, { color: accentColor }]}>
+              {isAdult ? 'Forelder' : 'Barn'}
+            </Text>
+          </View>
 
           <View style={styles.headerSection}>
             <Text style={styles.title}>Logg inn</Text>
+            <Text style={styles.subtitle}>
+              {isAdult
+                ? 'Oppgi ditt mobilnummer for å fortsette'
+                : 'Oppgi nummeret forelder registrerte deg med'}
+            </Text>
           </View>
 
-          <View style={[styles.formCard, { backgroundColor: cardBg }]}>
-            <Text style={styles.label}>Mobilnummer (8 siffer)</Text>
-            <TextInput
-              style={styles.input}
-              keyboardType="numeric"
-              maxLength={8}
+          <View style={styles.formSection}>
+            <Input
+              label="Mobilnummer (8 siffer)"
               placeholder="12345678"
-              placeholderTextColor={Colors.textMuted}
               value={phone}
               onChangeText={(text) => {
                 setPhone(text);
                 setError('');
               }}
+              accentColor={accentColor}
+              keyboardType="numeric"
+              maxLength={8}
               returnKeyType="done"
+              onSubmitEditing={handleSend}
             />
 
             {error.length > 0 && (
-              <Text style={styles.errorText}>{error}</Text>
+              <View style={styles.errorRow}>
+                <Feather name="alert-circle" size={13} color={Colors.statusDanger} />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
             )}
 
-            <TouchableOpacity
-              style={[
-                styles.button,
-                { backgroundColor: isAdult ? Colors.adultAccent : Colors.childAccent },
-              ]}
+            <Button
+              label="Send kode"
               onPress={handleSend}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.buttonText}>Send kode</Text>
-            </TouchableOpacity>
+              accentColor={accentColor}
+              disabled={phone.length === 0}
+              style={styles.sendButton}
+            />
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -115,57 +141,71 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
+    maxWidth: Layout.appMaxWidth,
+    width: '100%',
+    alignSelf: 'center',
   },
   backButton: {
-    marginBottom: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+    gap: Spacing.xs,
+    alignSelf: 'flex-start',
   },
   backButtonText: {
-    fontSize: FontSize.md,
-    color: Colors.textMuted,
+    fontSize: FontSize.body,
+    fontFamily: FontFamily.regular,
+    color: Colors.textSecondary,
+    lineHeight: LineHeight.normal,
+  },
+  roleIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    alignSelf: 'flex-start',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: Radius.full,
+    marginBottom: Spacing.md,
+  },
+  roleLabel: {
+    fontSize: FontSize.caption,
+    fontWeight: FontWeight.semibold,
+    fontFamily: FontFamily.semibold,
   },
   headerSection: {
     marginBottom: Spacing.xl,
   },
   title: {
-    fontSize: FontSize.xxl,
+    fontSize: FontSize.display,
     fontWeight: FontWeight.bold,
-    color: Colors.text,
+    fontFamily: FontFamily.bold,
+    color: Colors.textPrimary,
+    lineHeight: LineHeight.hero,
+    marginBottom: Spacing.xs,
   },
-  formCard: {
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
+  subtitle: {
+    fontSize: FontSize.body,
+    fontFamily: FontFamily.regular,
+    color: Colors.textSecondary,
+    lineHeight: LineHeight.loose,
   },
-  label: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
-    marginBottom: Spacing.sm,
-    fontWeight: FontWeight.medium,
+  formSection: {
+    gap: Spacing.sm,
   },
-  input: {
-    backgroundColor: Colors.adultBg,
-    color: Colors.text,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    fontSize: FontSize.lg,
-    marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
+  errorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
   },
   errorText: {
-    fontSize: FontSize.sm,
-    color: Colors.danger,
-    marginBottom: Spacing.md,
+    fontSize: FontSize.label,
+    fontFamily: FontFamily.regular,
+    color: Colors.statusDanger,
+    lineHeight: LineHeight.tight,
+    flex: 1,
   },
-  button: {
-    borderRadius: Radius.md,
-    paddingVertical: Spacing.md,
-    alignItems: 'center',
-    marginTop: Spacing.sm,
-  },
-  buttonText: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
-    color: Colors.text,
+  sendButton: {
+    marginTop: Spacing.xs,
   },
 });

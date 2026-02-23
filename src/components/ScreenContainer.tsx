@@ -1,23 +1,17 @@
 import React from 'react';
-import {
-  SafeAreaView,
-  ScrollView,
-  View,
-  StyleSheet,
-  ViewStyle,
-} from 'react-native';
-import { Spacing } from '../constants/tokens';
+import { SafeAreaView, ScrollView, View, StyleSheet, ViewStyle, Platform } from 'react-native';
+import { Colors, Layout, Spacing } from '../constants/tokens';
 
 interface Props {
   children: React.ReactNode;
-  bg: string;
+  bg?: string;
   style?: ViewStyle;
   scroll?: boolean;
 }
 
 const ScreenContainer: React.FC<Props> = ({
   children,
-  bg,
+  bg = Colors.bgSecondary,
   style,
   scroll = true,
 }) => {
@@ -26,13 +20,19 @@ const ScreenContainer: React.FC<Props> = ({
       {scroll ? (
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={[styles.content, style]}
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {children}
+          <View style={[styles.content, style]}>
+            {children}
+          </View>
         </ScrollView>
       ) : (
-        <View style={[styles.content, style]}>{children}</View>
+        <View style={styles.noScrollOuter}>
+          <View style={[styles.content, style]}>
+            {children}
+          </View>
+        </View>
       )}
     </SafeAreaView>
   );
@@ -45,8 +45,20 @@ const styles = StyleSheet.create({
   scroll: {
     flex: 1,
   },
+  scrollContent: {
+    flexGrow: 1,
+    alignItems: 'stretch',
+  },
+  noScrollOuter: {
+    flex: 1,
+    alignItems: 'stretch',
+  },
   content: {
-    padding: Spacing.md,
+    padding: Layout.screenPadding,
+    paddingBottom: Layout.screenPaddingBottom,
+    maxWidth: Layout.appMaxWidth,
+    width: '100%',
+    alignSelf: 'center',
   },
 });
 

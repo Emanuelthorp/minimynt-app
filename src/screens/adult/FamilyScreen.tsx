@@ -5,12 +5,16 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Colors, FontSize, FontWeight, Radius, Spacing } from '../../constants/tokens';
+import { Colors, FontSize, FontWeight, Radius, Spacing, Layout, LineHeight } from '../../constants/tokens';
 import { useAppContext } from '../../store/AppContext';
+import ScreenContainer from '../../components/ScreenContainer';
+import ScreenHeader from '../../components/ScreenHeader';
+import Card from '../../components/Card';
+import Button from '../../components/Button';
+import Input from '../../components/Input';
 
 const EMOJI_OPTIONS = ['🧒', '👦', '👧', '🧑', '👶', '🐣', '🦊', '🐧'];
 
@@ -93,94 +97,82 @@ export default function FamilyScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Familie</Text>
-          <Text style={styles.subtitle}>
-            {children.length} {children.length === 1 ? 'barn' : 'barn'} registrert
-          </Text>
-        </View>
+    <View style={styles.wrapper}>
+      <ScreenContainer bg={Colors.adultSurface}>
+        <ScreenHeader
+          title="Familie"
+          subtitle={`${children.length} barn registrert`}
+        />
 
-        {/* Children list */}
         {children.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyEmoji}>👨‍👩‍👧‍👦</Text>
+          <Card style={styles.emptyCard}>
             <Text style={styles.emptyTitle}>Ingen barn lagt til ennå</Text>
             <Text style={styles.emptySubtitle}>
               Trykk på knappen nedenfor for å legge til ditt første barn.
             </Text>
-          </View>
+          </Card>
         ) : (
           children.map((child) => (
-            <View key={child.phone} style={styles.childCard}>
-              <View style={styles.avatarContainer}>
-                <Text style={styles.avatarEmoji}>{child.avatarEmoji}</Text>
+            <Card key={child.phone}>
+              <View style={styles.childRow}>
+                <View style={styles.avatarContainer}>
+                  <Text style={styles.avatarEmoji}>{child.avatarEmoji}</Text>
+                </View>
+                <View style={styles.childInfo}>
+                  <Text style={styles.childName}>{child.name}</Text>
+                  <Text style={styles.childPhone}>{child.phone}</Text>
+                </View>
+                <Button
+                  label="Fjern"
+                  onPress={() => handleRemove(child.phone, child.name)}
+                  variant="secondary"
+                  accentColor={Colors.statusDanger}
+                  style={styles.removeBtn}
+                />
               </View>
-              <View style={styles.childInfo}>
-                <Text style={styles.childName}>{child.name}</Text>
-                <Text style={styles.childPhone}>{child.phone}</Text>
-              </View>
-              <TouchableOpacity
-                style={styles.removeButton}
-                onPress={() => handleRemove(child.phone, child.name)}
-                accessibilityLabel={`Fjern ${child.name}`}
-              >
-                <Text style={styles.removeButtonText}>Fjern</Text>
-              </TouchableOpacity>
-            </View>
+            </Card>
           ))
         )}
 
-        {/* Add child button */}
-        <TouchableOpacity style={styles.addButton} onPress={openModal}>
-          <Text style={styles.addButtonText}>+ Legg til barn</Text>
-        </TouchableOpacity>
-      </ScrollView>
+        <Button
+          label="Legg til barn"
+          onPress={openModal}
+          accentColor={Colors.adultPrimary}
+          style={styles.addButton}
+        />
+      </ScreenContainer>
 
-      {/* Add child Modal */}
-      <Modal
-        visible={modalVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={closeModal}
-      >
+      {/* Add child modal */}
+      <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={closeModal}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalSheet}>
             <Text style={styles.modalTitle}>Legg til barn</Text>
 
-            {/* Name input */}
-            <Text style={styles.fieldLabel}>Navn</Text>
-            <TextInput
-              style={[styles.input, nameError ? styles.inputError : null]}
+            <Input
+              label="Navn"
               placeholder="Barnets navn"
-              placeholderTextColor={Colors.textMuted}
               value={name}
               onChangeText={setName}
+              accentColor={Colors.adultPrimary}
               autoCapitalize="words"
               returnKeyType="next"
+              containerStyle={styles.fieldSpacing}
             />
             {nameError ? <Text style={styles.errorText}>{nameError}</Text> : null}
 
-            {/* Phone input */}
-            <Text style={styles.fieldLabel}>Telefonnummer</Text>
-            <TextInput
-              style={[styles.input, phoneError ? styles.inputError : null]}
+            <Input
+              label="Telefonnummer"
               placeholder="8 siffer"
-              placeholderTextColor={Colors.textMuted}
               value={phone}
               onChangeText={setPhone}
+              accentColor={Colors.adultPrimary}
               keyboardType="phone-pad"
               maxLength={8}
               returnKeyType="done"
+              containerStyle={styles.fieldSpacing}
             />
             {phoneError ? <Text style={styles.errorText}>{phoneError}</Text> : null}
 
-            {/* Emoji picker */}
             <Text style={styles.fieldLabel}>Velg avatar</Text>
             <View style={styles.emojiGrid}>
               {EMOJI_OPTIONS.map((emoji) => (
@@ -197,10 +189,12 @@ export default function FamilyScreen() {
               ))}
             </View>
 
-            {/* Actions */}
-            <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-              <Text style={styles.saveButtonText}>Lagre</Text>
-            </TouchableOpacity>
+            <Button
+              label="Lagre"
+              onPress={handleSave}
+              accentColor={Colors.adultPrimary}
+              style={styles.saveButton}
+            />
             <TouchableOpacity style={styles.cancelLink} onPress={closeModal}>
               <Text style={styles.cancelLinkText}>Avbryt</Text>
             </TouchableOpacity>
@@ -212,64 +206,35 @@ export default function FamilyScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  wrapper: {
     flex: 1,
-    backgroundColor: Colors.adultBg,
-  },
-  content: {
-    padding: Spacing.lg,
-    paddingBottom: Spacing.xl,
-  },
-  header: {
-    marginBottom: Spacing.lg,
-  },
-  title: {
-    fontSize: FontSize.xxl,
-    fontWeight: FontWeight.bold,
-    color: Colors.text,
-    marginBottom: Spacing.xs,
-  },
-  subtitle: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
   },
   emptyCard: {
-    backgroundColor: Colors.adultCard,
-    borderRadius: Radius.md,
-    padding: Spacing.xl,
     alignItems: 'center',
-    marginBottom: Spacing.lg,
-  },
-  emptyEmoji: {
-    fontSize: 48,
-    marginBottom: Spacing.md,
+    paddingVertical: Spacing.xl,
   },
   emptyTitle: {
-    fontSize: FontSize.lg,
+    fontSize: FontSize.body,
     fontWeight: FontWeight.semibold,
-    color: Colors.text,
+    color: Colors.textPrimary,
     marginBottom: Spacing.sm,
     textAlign: 'center',
   },
   emptySubtitle: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
+    fontSize: FontSize.label,
+    color: Colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: LineHeight.tight,
   },
-  childCard: {
-    backgroundColor: Colors.adultCard,
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-    marginBottom: Spacing.sm,
+  childRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   avatarContainer: {
     width: 48,
     height: 48,
-    borderRadius: 24,
-    backgroundColor: Colors.adultBg,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.bgSecondary,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
@@ -281,82 +246,54 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   childName: {
-    fontSize: FontSize.md,
+    fontSize: FontSize.body,
     fontWeight: FontWeight.semibold,
-    color: Colors.text,
+    color: Colors.textPrimary,
     marginBottom: 2,
   },
   childPhone: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
+    fontSize: FontSize.label,
+    color: Colors.textSecondary,
   },
-  removeButton: {
-    backgroundColor: Colors.danger,
-    borderRadius: Radius.sm,
+  removeBtn: {
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-  },
-  removeButtonText: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.semibold,
-    color: Colors.text,
   },
   addButton: {
-    backgroundColor: Colors.adultAccent,
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-    alignItems: 'center',
     marginTop: Spacing.sm,
   },
-  addButtonText: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
-    color: Colors.text,
-  },
-  // Modal styles
+  // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: Colors.overlayScrim,
     justifyContent: 'flex-end',
   },
   modalSheet: {
-    backgroundColor: Colors.adultCard,
+    backgroundColor: Colors.bgPrimary,
     borderTopLeftRadius: Radius.lg,
     borderTopRightRadius: Radius.lg,
-    padding: Spacing.lg,
-    paddingBottom: Spacing.xl,
+    padding: Layout.modalPadding,
+    paddingBottom: Layout.modalPaddingBottom,
   },
   modalTitle: {
-    fontSize: FontSize.xl,
+    fontSize: FontSize.title,
     fontWeight: FontWeight.bold,
-    color: Colors.text,
-    marginBottom: Spacing.lg,
+    color: Colors.textPrimary,
+    marginBottom: Layout.modalTitleGap,
     textAlign: 'center',
   },
+  fieldSpacing: {
+    marginBottom: Spacing.sm,
+  },
   fieldLabel: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.semibold,
-    color: Colors.textMuted,
+    fontSize: FontSize.label,
+    fontWeight: FontWeight.medium,
+    color: Colors.textSecondary,
     marginBottom: Spacing.xs,
     marginTop: Spacing.sm,
   },
-  input: {
-    backgroundColor: Colors.adultBg,
-    borderRadius: Radius.sm,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    color: Colors.text,
-    fontSize: FontSize.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    marginBottom: Spacing.xs,
-  },
-  inputError: {
-    borderColor: Colors.danger,
-  },
   errorText: {
-    fontSize: FontSize.xs,
-    color: Colors.danger,
+    fontSize: FontSize.caption,
+    color: Colors.statusDanger,
     marginBottom: Spacing.sm,
   },
   emojiGrid: {
@@ -368,39 +305,30 @@ const styles = StyleSheet.create({
   emojiOption: {
     width: 52,
     height: 52,
-    borderRadius: Radius.sm,
-    backgroundColor: Colors.adultBg,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.bgSecondary,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: 'transparent',
   },
   emojiOptionSelected: {
-    borderColor: Colors.adultAccent,
-    backgroundColor: 'rgba(61,155,233,0.15)',
+    borderColor: Colors.adultPrimary,
+    backgroundColor: Colors.adultMuted,
   },
   emojiText: {
     fontSize: 26,
   },
   saveButton: {
-    backgroundColor: Colors.adultAccent,
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-    alignItems: 'center',
     marginTop: Spacing.sm,
     marginBottom: Spacing.sm,
   },
-  saveButtonText: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
-    color: Colors.text,
-  },
   cancelLink: {
     alignItems: 'center',
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.md,
   },
   cancelLinkText: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
+    fontSize: FontSize.label,
+    color: Colors.textSecondary,
   },
 });
