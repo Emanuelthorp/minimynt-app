@@ -13,6 +13,9 @@ Denne mappen inneholder alle strategiske og tekniske dokumenter for MiniMynt.
 | `strategic-directive.md` | Strategiske retningslinjer og prioriteringer |
 | `system_architecture.md` | Teknisk arkitektur og systemdesign |
 | `decision_log.md` | Logg over viktige beslutninger og begrunnelser |
+| `CLAUDE.md` | Kontrakt og instruksjoner for AI-assistert utvikling |
+| `project_memory.md` | Nåværende prosjektstatus og arbeidsminne |
+| `prompt-bibliotek.md` | Gjenbrukbare prompts for Claude Code |
 
 ## Kom i gang (utvikling)
 
